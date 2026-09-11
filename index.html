@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="meta.title">PhysBrain 1.5 — From General VLMs to Physical Foundation Model</title>
+<link rel="icon" type="image/png" href="assets/icon.png">
+<meta name="description" content="PhysBrain 1.5: a unified embodied foundation model for understanding, action generation, and future-state prediction. Open-source SOTA on 28 embodied benchmarks." data-i18n-content="meta.description">
+<script>
+/* Apply the preference before first paint, including when storage is unavailable. */
+const themePreferenceKey='physbrain-theme';
+const palettePreferenceKey='physbrain-palette';
+const paletteNames={aurora:'Aurora',ocean:'Ocean',sunset:'Sunset',blossom:'Blossom'};
+let palettePreference='aurora';
+try{
+  const saved=localStorage.getItem(palettePreferenceKey);
+  if(Object.hasOwn(paletteNames,saved))palettePreference=saved;
+}catch{}
+document.documentElement.dataset.palette=palettePreference;
+const systemTheme=matchMedia('(prefers-color-scheme: dark)');
+let themePreference=null;
+try{
+  const saved=localStorage.getItem(themePreferenceKey);
+  if(saved==='light'||saved==='dark')themePreference=saved;
+}catch{}
+function applyTheme(theme){document.documentElement.dataset.theme=theme;}
+applyTheme(themePreference||(systemTheme.matches?'dark':'light'));
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#05060e;
+  --bg2:#0a0d1d;
+  --panel:rgba(255,255,255,.035);
+  --border:rgba(var(--secondary-rgb),.22);
+  --text:#e8ecf8;
+  --dim:#9aa3c0;
+  --cyan:#3ee6ff;
+  --violet:#8b5cff;
+  --blue:#4d7cff;
+  --teal:#2dd4bf;
+  --accent-rgb:62,230,255;
+  --secondary-rgb:77,124,255;
+  --end-rgb:139,92,255;
+  --grad:linear-gradient(100deg,var(--cyan) 0%,var(--blue) 45%,var(--violet) 100%);
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#fff;
+  --bg2:#eef2f8;
+  --panel:rgba(15,35,70,.035);
+  --border:rgba(var(--secondary-rgb),.18);
+  --text:#101a2e;
+  --dim:#52617a;
+  --cyan:#08738d;
+  --violet:#6740c4;
+  --blue:#285bc4;
+  --teal:#087f72;
+  --accent-rgb:8,115,141;
+  --secondary-rgb:40,91,196;
+  --end-rgb:103,64,196;
+}
+/* Palette and light/dark appearance can be selected independently. */
+:root[data-palette="ocean"]{
+  --bg:#040e13;--bg2:#0a1b24;--cyan:#5eead4;--blue:#38bdf8;--violet:#93c5fd;
+  --accent-rgb:94,234,212;--secondary-rgb:56,189,248;--end-rgb:147,197,253;
+}
+:root[data-palette="sunset"]{
+  --bg:#140a10;--bg2:#24121d;--cyan:#fcd477;--blue:#ff9a76;--violet:#f58ac5;
+  --accent-rgb:252,212,119;--secondary-rgb:255,154,118;--end-rgb:245,138,197;
+}
+:root[data-palette="blossom"]{
+  --bg:#100a18;--bg2:#1c1229;--cyan:#f9a8d4;--blue:#c4a1ff;--violet:#a5b4fc;
+  --accent-rgb:249,168,212;--secondary-rgb:196,161,255;--end-rgb:165,180,252;
+}
+:root[data-theme="light"][data-palette="ocean"]{
+  --bg:#f8fffe;--bg2:#eaf6f6;--cyan:#08796c;--blue:#036f9e;--violet:#335cb5;
+  --accent-rgb:8,121,108;--secondary-rgb:3,111,158;--end-rgb:51,92,181;
+}
+:root[data-theme="light"][data-palette="sunset"]{
+  --bg:#fffaf7;--bg2:#faeee8;--cyan:#966008;--blue:#b54922;--violet:#af367a;
+  --accent-rgb:150,96,8;--secondary-rgb:181,73,34;--end-rgb:175,54,122;
+}
+:root[data-theme="light"][data-palette="blossom"]{
+  --bg:#fffbff;--bg2:#f3ecf9;--cyan:#ac367b;--blue:#7944b9;--violet:#505cbb;
+  --accent-rgb:172,54,123;--secondary-rgb:121,68,185;--end-rgb:80,92,187;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',system-ui,sans-serif;
+  overflow-x:hidden;
+  line-height:1.65;
+}
+::selection{background:rgba(var(--accent-rgb),.25)}
+h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;letter-spacing:-.01em}
+a{color:var(--cyan);text-decoration:none}
+.container{max-width:1160px;margin:0 auto;padding:0 28px}
+
+/* ---------- background fx ---------- */
+#bg-canvas{position:fixed;inset:0;z-index:-2;opacity:.55}
+.bg-glow{position:fixed;z-index:-1;inset:0;pointer-events:none;
+  background:
+   radial-gradient(700px 420px at 15% -5%, rgba(var(--secondary-rgb),.16), transparent 60%),
+   radial-gradient(800px 500px at 90% 10%, rgba(var(--end-rgb),.13), transparent 60%),
+   radial-gradient(900px 600px at 50% 110%, rgba(var(--accent-rgb),.07), transparent 60%);
+}
+.grid-overlay{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.35;
+  background-image:linear-gradient(rgba(var(--secondary-rgb),.05) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(var(--secondary-rgb),.05) 1px,transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(ellipse 90% 60% at 50% 0%,#000 30%,transparent 75%);
+}
+
+/* ---------- nav ---------- */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;
+  backdrop-filter:blur(14px);
+  background:color-mix(in srgb,var(--bg) 82%,transparent);
+  border-bottom:1px solid var(--border);
+}
+
+.nav-inner{max-width:1160px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:18px}
+.nav-logo{font-family:'Space Grotesk';font-weight:700;font-size:1.12rem;color:var(--text);display:flex;align-items:center;gap:9px;white-space:nowrap}
+.nav-logo img{width:32px;height:32px;object-fit:contain;display:block;flex-shrink:0}
+.nav-links{margin-left:auto;display:flex;gap:18px;font-size:.86rem;white-space:nowrap}
+.nav-links a{color:var(--dim);transition:color .2s}
+.nav-links a:hover{color:var(--cyan)}
+.nav-actions{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
+.language-toggle{min-width:48px;min-height:44px;padding:0 10px;border:1px solid var(--border);border-radius:12px;
+  background:var(--panel);color:var(--text);font:inherit;font-size:.82rem;font-weight:600;cursor:pointer}
+.language-toggle:hover{border-color:var(--cyan);background:var(--bg2)}
+.language-toggle:focus-visible{outline:2px solid var(--cyan);outline-offset:4px}
+html[lang="zh-CN"] body{font-family:'Inter','PingFang SC','Microsoft YaHei',system-ui,sans-serif}
+html[lang="zh-CN"] h1,html[lang="zh-CN"] h2,html[lang="zh-CN"] h3,html[lang="zh-CN"] h4{font-family:'Space Grotesk','PingFang SC','Microsoft YaHei',sans-serif}
+.theme-toggle{flex:0 0 44px;width:44px;height:44px;border:1px solid var(--border);border-radius:12px;
+  background:var(--panel);color:var(--text);display:grid;place-items:center;cursor:pointer;
+  transition:background .2s,border-color .2s}
+.theme-toggle:hover{background:var(--bg2);border-color:var(--cyan)}
+.theme-toggle:focus-visible{outline:2px solid var(--cyan);outline-offset:4px}
+.theme-toggle svg{width:20px;height:20px;grid-area:1/1}
+.theme-toggle .moon{display:none}
+:root[data-theme="light"] .theme-toggle .sun{display:none}
+:root[data-theme="light"] .theme-toggle .moon{display:block}
+/* Native disclosure keeps the picker usable with keyboard and touch. */
+.theme-picker{position:relative;flex-shrink:0}
+.theme-picker summary{list-style:none;display:flex;align-items:center;gap:9px;min-height:44px;
+  padding:0 12px;border:1px solid var(--border);border-radius:12px;cursor:pointer;
+  background:var(--panel);font-size:.82rem;font-weight:600}
+.theme-picker summary::-webkit-details-marker{display:none}
+.theme-picker summary:hover{border-color:var(--cyan)}
+.theme-picker summary:focus-visible,.palette-option:focus-visible{outline:2px solid var(--cyan);outline-offset:4px}
+.theme-current{width:20px;height:20px;border-radius:50%;background:var(--grad);border:1px solid var(--border)}
+.theme-chevron{width:12px;height:12px;transition:transform .2s}
+.theme-picker[open] .theme-chevron{transform:rotate(180deg)}
+.theme-panel{position:absolute;right:0;top:calc(100% + 12px);width:min(300px,calc(100vw - 32px));
+  max-height:calc(100svh - 100px);overflow-y:auto;padding:20px;border:1px solid var(--border);
+  border-radius:18px;background:var(--bg2);box-shadow:0 18px 60px rgba(0,0,0,.22)}
+.theme-panel h2{font-size:1rem;margin-bottom:4px}
+.theme-panel p{font-size:.78rem;color:var(--dim);margin-bottom:16px}
+.theme-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.palette-option{border:1px solid var(--border);border-radius:12px;background:var(--panel);color:var(--text);
+  padding:8px;cursor:pointer;font:inherit;font-size:.8rem;text-align:left}
+.palette-option[aria-pressed="true"]{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan)}
+.palette-preview{display:block;height:40px;border-radius:7px;margin-bottom:6px}
+.palette-name{display:flex;align-items:center;justify-content:space-between}
+.palette-name::after{content:"✓";visibility:hidden;color:var(--cyan)}
+.palette-option[aria-pressed="true"] .palette-name::after{visibility:visible}
+.theme-appearance{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-top:18px;padding-top:14px;border-top:1px solid var(--border);font-size:.82rem}
+@media(max-width:1150px){.nav-links{display:none}}
+@media(max-width:600px){
+  .nav-inner{padding:12px 16px;gap:10px}
+  .nav-logo{font-size:1rem;gap:7px}
+  .nav-logo img{width:28px;height:28px}
+  .nav-actions{position:relative;gap:8px}
+  .theme-picker{position:static}
+  .theme-picker summary{width:44px;padding:0;justify-content:center}
+  .theme-picker .theme-label,.theme-picker .theme-chevron{display:none}
+}
+@media(prefers-reduced-motion:reduce){.theme-chevron{transition:none}}
+
+/* ---------- hero ---------- */
+header{min-height:100svh;display:flex;align-items:center;padding:130px 0 70px;position:relative}
+.tag{display:inline-flex;align-items:center;gap:8px;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--cyan);border:1px solid rgba(var(--accent-rgb),.3);border-radius:100px;padding:7px 18px;
+  background:rgba(var(--accent-rgb),.06);box-shadow:0 0 24px rgba(var(--accent-rgb),.12) inset}
+.tag .pulse{width:7px;height:7px;border-radius:50%;background:var(--cyan);animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(var(--accent-rgb),.5)}50%{opacity:.5;box-shadow:0 0 0 6px rgba(var(--accent-rgb),0)}}
+.hero-title{font-size:clamp(3rem,8.5vw,6.2rem);font-weight:700;line-height:1.02;margin:28px 0 10px}
+.hero-title .ver{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 30px rgba(var(--secondary-rgb),.45))}
+.hero-sub{font-family:'Space Grotesk';font-size:clamp(1.05rem,2.4vw,1.5rem);color:var(--dim);font-weight:500;margin-bottom:26px}
+.hero-desc{max-width:660px;color:var(--dim);font-size:1.02rem;margin-bottom:38px}
+.hero-desc b{color:var(--text)}
+.btn-row{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:52px}
+.btn{display:inline-flex;align-items:center;gap:9px;font-family:'Space Grotesk';font-weight:600;font-size:.95rem;
+  padding:13px 26px;border-radius:12px;transition:transform .18s,box-shadow .18s;border:1px solid transparent}
+.btn:hover{transform:translateY(-2px)}
+.btn-primary{background:var(--grad);color:#04060f;box-shadow:0 8px 32px rgba(var(--secondary-rgb),.4)}
+.btn-primary:hover{box-shadow:0 12px 42px rgba(var(--secondary-rgb),.55)}
+.btn-ghost{border-color:var(--border);color:var(--text);background:var(--panel)}
+.btn-ghost:hover{border-color:rgba(var(--accent-rgb),.5);box-shadow:0 8px 30px rgba(var(--accent-rgb),.12)}
+.btn-pending{border-color:var(--border);background:var(--panel);color:var(--dim);cursor:default;line-height:inherit}
+.btn-pending:hover{transform:none}
+.btn-status{font-family:'Inter',system-ui,sans-serif;font-size:.68rem;font-weight:500;border:1px solid var(--border);border-radius:6px;padding:2px 6px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;max-width:860px}
+@media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{border:1px solid var(--border);border-radius:16px;padding:20px 22px;background:var(--panel);position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:var(--grad);opacity:.85}
+.stat .num{font-family:'Space Grotesk';font-size:2rem;font-weight:700;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat .lbl{font-size:.8rem;color:var(--dim);margin-top:4px}
+
+/* ---------- sections ---------- */
+section{padding:96px 0}
+.kicker{font-size:.78rem;letter-spacing:.22em;text-transform:uppercase;color:var(--cyan);font-weight:600;margin-bottom:14px}
+.sec-title{font-size:clamp(1.8rem,4vw,2.7rem);font-weight:700;margin-bottom:18px}
+.sec-lead{color:var(--dim);max-width:760px;font-size:1.02rem;margin-bottom:44px}
+.sec-lead b{color:var(--text)}
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent)}
+
+/* cards */
+.card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+@media(max-width:900px){.card-grid{grid-template-columns:1fr}}
+.card{border:1px solid var(--border);border-radius:20px;padding:30px;background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.015));
+  position:relative;overflow:hidden;transition:transform .25s,border-color .25s,box-shadow .25s}
+.card:hover{transform:translateY(-5px);border-color:rgba(var(--accent-rgb),.4);box-shadow:0 20px 50px rgba(var(--secondary-rgb),.25)}
+.card .icon{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:1.35rem;margin-bottom:18px;
+  background:rgba(var(--secondary-rgb),.12);border:1px solid rgba(var(--secondary-rgb),.3)}
+.card h3{font-size:1.18rem;margin-bottom:10px}
+.card p{color:var(--dim);font-size:.93rem}
+.card .glow{position:absolute;width:220px;height:220px;border-radius:50%;filter:blur(70px);opacity:.22;top:-70px;right:-70px}
+
+/* figure panels */
+.figure{border:1px solid var(--border);border-radius:20px;background:#fff;padding:22px;box-shadow:0 24px 70px rgba(var(--secondary-rgb),.25)}
+:root[data-theme="light"] .figure{box-shadow:0 18px 45px rgba(40,65,110,.12)}
+.figure img{width:100%;display:block;border-radius:8px}
+.fig-cap{text-align:center;color:var(--dim);font-size:.86rem;margin-top:16px}
+
+/* loop */
+.loop-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:44px}
+.loop-training{margin-top:28px;padding-left:18px;border-left:2px solid var(--border);color:var(--dim);font-size:.9rem}
+.loop-training b{color:var(--text)}
+@media(max-width:900px){.loop-steps{grid-template-columns:repeat(2,1fr)}}
+.loop-step{border:1px solid var(--border);border-radius:16px;padding:22px;background:var(--panel);text-align:center;position:relative}
+.loop-step .idx{font-family:'JetBrains Mono';font-size:.72rem;color:var(--cyan);letter-spacing:.15em}
+.loop-step h4{margin:8px 0 6px;font-size:1.02rem}
+.loop-step p{font-size:.84rem;color:var(--dim)}
+.loop-step::after{content:"→";position:absolute;right:-15px;top:50%;transform:translateY(-50%);color:var(--cyan);opacity:.6;font-size:1.1rem}
+.loop-step:last-child::after{content:"↺";right:-13px}
+@media(max-width:900px){.loop-step::after{display:none}}
+
+/* leaderboard highlight */
+.lb-wrap{position:relative}
+.lb-wrap .figure{padding:8px;border-radius:16px}
+.lb-wrap .figure img{width:100%;height:auto}
+.lb-badge{position:absolute;top:-16px;left:32px;z-index:2;background:var(--grad);color:#04060f;font-family:'Space Grotesk';
+  font-weight:700;font-size:.82rem;padding:7px 18px;border-radius:100px;box-shadow:0 8px 26px rgba(var(--secondary-rgb),.5)}
+.rank-chips{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 36px}
+.chip{border:1px solid var(--border);border-radius:100px;padding:9px 20px;font-size:.88rem;background:var(--panel);color:var(--dim)}
+.chip b{color:var(--text)}
+.chip.gold{border-color:rgba(var(--accent-rgb),.45);color:var(--cyan);background:rgba(var(--accent-rgb),.06)}
+
+/* category list */
+.benchmark-panel{border:1px solid var(--border);border-radius:20px;overflow:hidden;background:var(--bg)}
+.benchmark-intro{padding:24px 24px 18px;border-bottom:1px solid var(--border)}
+.benchmark-intro h3{font-size:1.2rem;margin-bottom:6px}
+.benchmark-intro p,.benchmark-note{font-size:.82rem;color:var(--dim)}
+.benchmark-legend{display:flex;flex-wrap:wrap;gap:10px 20px;margin-top:14px;font-size:.76rem;color:var(--dim)}
+.benchmark-legend span{display:inline-flex;align-items:center;gap:7px}
+.benchmark-key{width:16px;height:16px;border-radius:4px;border:1px solid var(--border)}
+.benchmark-key.best{background:rgba(var(--accent-rgb),.25)}
+.benchmark-key.second{background:rgba(var(--accent-rgb),.1)}
+.benchmark-scroll{overflow:auto;max-height:720px;isolation:isolate;scrollbar-color:var(--dim) var(--bg2)}
+.benchmark-scroll:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+.benchmark-table{width:100%;min-width:1610px;border-collapse:separate;border-spacing:0;
+  font-size:.78rem;line-height:1.45;font-variant-numeric:tabular-nums}
+.benchmark-table caption{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.benchmark-table th,.benchmark-table td{padding:12px 10px;border-bottom:1px solid var(--border);text-align:center}
+.benchmark-table thead th{position:sticky;z-index:3;background:var(--bg2);min-width:105px;font-weight:600;white-space:nowrap;line-height:20px}
+.benchmark-table thead .source-row th{top:0;height:36px;padding:8px 10px;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase}
+.benchmark-table thead .source-row .benchmark-name{height:114px;font-size:.78rem;letter-spacing:normal;text-transform:none}
+.benchmark-table thead .model-row th{top:36px;height:44px;padding:12px 10px}
+.benchmark-table thead .size-row th{top:80px;height:34px;padding:7px 10px;font-size:.72rem;font-weight:400}
+.benchmark-table .benchmark-name{position:sticky;left:0;z-index:2;background:var(--bg);text-align:left;
+  min-width:190px;max-width:190px;overflow-wrap:anywhere;box-shadow:1px 0 0 var(--border);font-weight:500}
+.benchmark-table thead .benchmark-name{z-index:4;background:var(--bg2)}
+.benchmark-table .our-model{position:sticky;right:0;z-index:2;background:var(--bg2);min-width:112px;
+  box-shadow:-1px 0 0 var(--border);font-weight:700}
+.benchmark-table thead .our-model{z-index:4;color:var(--cyan)}
+.benchmark-table .reference{color:var(--dim)}
+.benchmark-table .group-start{border-left:1px solid var(--border)}
+.benchmark-table .score-best{background:color-mix(in srgb,var(--cyan) 23%,var(--bg));font-weight:700}
+.benchmark-table .score-second{background:color-mix(in srgb,var(--cyan) 10%,var(--bg));text-decoration:underline;text-underline-offset:3px}
+.benchmark-table .category-row th{padding:10px 14px;text-align:left;background:var(--bg2);color:var(--cyan);font-size:.73rem;letter-spacing:.02em}
+.benchmark-table .category-label{position:sticky;left:14px;display:inline-block;max-width:calc(100vw - 100px)}
+.benchmark-table .overall-row th,.benchmark-table .overall-row td{border-top:2px solid var(--border);font-weight:700}
+.benchmark-table tbody tr:not(.category-row):hover td{outline:1px solid var(--border);outline-offset:-1px}
+.benchmark-note{padding:16px 24px;border-top:1px solid var(--border)}
+@media(max-width:760px){
+  .benchmark-intro{padding:20px 16px 16px}
+  .benchmark-note{padding:14px 16px}
+  .benchmark-table .benchmark-name{min-width:132px;max-width:132px}
+  .benchmark-table .our-model{min-width:88px;max-width:88px}
+  .benchmark-table th,.benchmark-table td{padding:10px 8px}
+  .benchmark-scroll{max-height:65svh}
+}
+.cat-list{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:40px}
+@media(max-width:800px){.cat-list{grid-template-columns:1fr}}
+.cat{display:flex;gap:16px;border:1px solid var(--border);border-radius:14px;padding:18px 20px;background:var(--panel)}
+.cat .n{font-family:'JetBrains Mono';color:var(--cyan);font-size:.8rem;padding-top:3px}
+.cat h4{font-size:.98rem;margin-bottom:4px}
+.cat p{font-size:.85rem;color:var(--dim)}
+
+/* code / quickstart */
+.code-block{border:1px solid var(--border);border-radius:16px;background:var(--bg2);overflow:hidden}
+:root[data-theme="light"] .code-block{background:var(--bg2)}
+:root[data-theme="light"] .code-block pre{color:var(--text)}
+:root[data-theme="light"] .code-block .cm{color:var(--dim)}
+.code-head{display:flex;gap:7px;padding:13px 18px;border-bottom:1px solid var(--border);align-items:center}
+.code-head span{width:11px;height:11px;border-radius:50%}
+.code-block pre{padding:22px 24px;font-family:'JetBrains Mono';font-size:.84rem;line-height:1.75;overflow-x:auto;color:#c7d0ea}
+.code-block .cm{color:#5b6690}.code-block .kw{color:var(--cyan)}
+.eco{display:flex;flex-wrap:wrap;gap:10px}
+.eco span{border:1px solid var(--border);border-radius:8px;padding:7px 15px;font-family:'JetBrains Mono';font-size:.8rem;color:var(--dim);background:var(--panel)}
+
+/* two-col */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+@media(max-width:900px){.two-col{grid-template-columns:1fr}}
+
+/* footer */
+footer{border-top:1px solid var(--border);padding:56px 0 40px;background:rgba(255,255,255,.015)}
+.foot-logos{display:flex;align-items:center;flex-wrap:wrap;gap:16px 28px;margin:18px 0 26px;max-width:100%}
+.foot-logos img{display:block;height:auto;max-width:100%;object-fit:contain}
+.foot-logos .deepcybo-logo{width:180px}
+.foot-logos .zgca-logo{width:420px}
+:root:not([data-theme="light"]) .foot-logos img{filter:brightness(0) invert(1);opacity:.9}
+footer p{color:var(--dim);font-size:.85rem}
+.foot-links{display:flex;gap:22px;margin-top:14px;font-size:.85rem}
+
+/* reveal animation */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease}
+.reveal.visible{opacity:1;transform:none}
+
+/* Keep accents legible and surfaces distinct on white. */
+:root[data-theme="light"] .btn-primary,
+:root[data-theme="light"] .lb-badge{color:#fff}
+:root[data-theme="light"] .card{background:linear-gradient(160deg,var(--bg),var(--bg2))}
+:root[data-theme="light"] .card:hover{box-shadow:0 20px 50px rgba(30,60,100,.1)}
+:root[data-theme="light"] .card .glow{opacity:.1}
+:root[data-theme="light"] .tag,
+:root[data-theme="light"] .chip.gold{border-color:rgba(var(--accent-rgb),.3);background:rgba(var(--accent-rgb),.05)}
+:root[data-theme="light"] .hero-title .ver{filter:none}
+:root[data-theme="light"] #bg-canvas{opacity:.25}
+:root[data-theme="light"] .bg-glow{opacity:.35}
+:root[data-theme="light"] footer{background:var(--bg2)}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="bg-glow"></div>
+<div class="grid-overlay"></div>
+
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo"><img src="assets/icon.png" width="32" height="32" alt="">PhysBrain&nbsp;1.5</div>
+    <div class="nav-links">
+      <a href="#overview" data-i18n="nav.overview">Overview</a>
+      <a href="#loop" data-i18n="nav.loop">Physical Loop</a>
+      <a href="#results" data-i18n="nav.results">Results</a>
+      <a href="#action" data-i18n="nav.action">Action</a>
+      <a href="#future" data-i18n="nav.future">Future Prediction</a>
+      <a href="#start" data-i18n="nav.start">Quick Start</a>
+      <a href="#cite" data-i18n="nav.cite">Citation</a>
+    </div>
+    <div class="nav-actions">
+    <details class="theme-picker" id="theme-picker">
+      <summary aria-label="Choose color theme" title="Choose color theme" data-i18n-aria-label="theme.choose" data-i18n-title="theme.choose">
+        <span class="theme-current" aria-hidden="true"></span><span class="theme-label" data-i18n="theme.label">Themes</span>
+        <svg class="theme-chevron" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m2 4 4 4 4-4"/></svg>
+      </summary>
+      <div class="theme-panel">
+        <h2 data-i18n="theme.title">Make it yours</h2>
+        <p data-i18n="theme.description">Choose a gradient for PhysBrain.</p>
+        <div class="theme-options" role="group" aria-label="Gradient palette" data-i18n-aria-label="theme.palette">
+          <button class="palette-option" type="button" data-palette-option="aurora" aria-pressed="true">
+            <span class="palette-preview" style="background:linear-gradient(110deg,#3ee6ff,#4d7cff,#8b5cff)" aria-hidden="true"></span>
+            <span class="palette-name" data-i18n="theme.aurora">Aurora</span>
+          </button>
+          <button class="palette-option" type="button" data-palette-option="ocean" aria-pressed="false">
+            <span class="palette-preview" style="background:linear-gradient(110deg,#5eead4,#38bdf8,#93c5fd)" aria-hidden="true"></span>
+            <span class="palette-name" data-i18n="theme.ocean">Ocean</span>
+          </button>
+          <button class="palette-option" type="button" data-palette-option="sunset" aria-pressed="false">
+            <span class="palette-preview" style="background:linear-gradient(110deg,#fcd477,#ff9a76,#f58ac5)" aria-hidden="true"></span>
+            <span class="palette-name" data-i18n="theme.sunset">Sunset</span>
+          </button>
+          <button class="palette-option" type="button" data-palette-option="blossom" aria-pressed="false">
+            <span class="palette-preview" style="background:linear-gradient(110deg,#f9a8d4,#c4a1ff,#a5b4fc)" aria-hidden="true"></span>
+            <span class="palette-name" data-i18n="theme.blossom">Blossom</span>
+          </button>
+        </div>
+        <div class="theme-appearance"><span id="theme-appearance-label">Appearance</span>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to light theme" title="Switch to light theme">
+            <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+            <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.5 13Z"/></svg>
+          </button>
+        </div>
+      </div>
+    </details>
+    <button class="language-toggle" id="language-toggle" type="button" lang="zh-CN" aria-label="Switch to Chinese" title="Switch to Chinese" disabled>中文</button>
+    </div>
+  </div>
+</nav>
+
+<header>
+  <div class="container">
+    <span class="tag"><span class="pulse"></span><span data-i18n="hero.tag">Technical Report · 2026</span></span>
+    <h1 class="hero-title">PhysBrain <span class="ver">1.5</span></h1>
+    <div class="hero-sub" data-i18n="hero.subtitle">From General VLMs to Physical Foundation Model</div>
+    <p class="hero-desc" data-i18n="hero.description">
+      A unified embodied vision-language model that <b>understands</b> the observed world,
+      <b>generates</b> goal-directed actions, and <b>predicts</b> how the environment will evolve —
+      all as discrete tokens under a single shared autoregressive backbone.
+    </p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="https://huggingface.co/collections/DeepCybo/physbrain-15" target="_blank" rel="noopener" data-i18n="link.weights">🤗 Model Weights</a>
+      <!-- TODO: Replace this disabled button with an <a> linking to the paper when its URL is available. -->
+      <button class="btn btn-pending" type="button" disabled title="Paper link coming soon" data-i18n-title="paper.pending"><span aria-hidden="true">📄</span> <span data-i18n="link.paper">Paper</span> <span class="btn-status" data-i18n="link.soon">Coming soon</span></button>
+      <a class="btn btn-ghost" href="https://huggingface.co/spaces/hugging-apps/physbrain1-5-8b-demo" target="_blank" rel="noopener" data-i18n="link.demo">▶ Live Demo</a>
+      <a class="btn btn-ghost" href="https://github.com/DeepCybo-PhysAI/PhysBrain-1.5" target="_blank" rel="noopener">&lt;/&gt; GitHub</a>
+      <a class="btn btn-ghost" href="https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit" target="_blank" rel="noopener" data-i18n="link.eval">📐 EvalKit</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="num">72.5</div><div class="lbl" data-i18n="stat.score">Overall score · open-source SOTA</div></div>
+      <div class="stat"><div class="num">28</div><div class="lbl" data-i18n="stat.benchmarks">Embodied benchmarks evaluated</div></div>
+      <div class="stat"><div class="num">#1</div><div class="lbl" data-i18n="stat.wins">On 14 benchmarks among open-source</div></div>
+      <div class="stat"><div class="num">8B</div><div class="lbl" data-i18n="stat.size">Parameters · Qwen3-VL backbone</div></div>
+    </div>
+  </div>
+</header>
+
+<section id="overview">
+  <div class="container">
+    <div class="kicker reveal" data-i18n="overview.kicker">One Model · Three Capabilities</div>
+    <h2 class="sec-title reveal" data-i18n="overview.title">A Foundation Model for the Physical World</h2>
+    <p class="sec-lead reveal" data-i18n="overview.description">
+      PhysBrain 1.5 mirrors the <b>closed physical loop</b> of agent–environment interaction: observations guide reasoning
+      and action, actions alter the environment, and the updated state feeds back as the next observation.
+      Language responses, structured spatial outputs, end-effector trajectories, and future world states are all
+      formulated as discrete tokens and jointly learned under a unified next-token prediction objective — <b>no task-specific heads</b>.
+    </p>
+    <div class="card-grid">
+      <div class="card reveal">
+        <div class="glow" style="background:var(--blue)"></div>
+        <div class="icon">👁️</div>
+        <h3 data-i18n="cap.understanding">Embodied Understanding</h3>
+        <p data-i18n="cap.understanding_desc">Visual-spatial perception, 3D &amp; multi-view reasoning, embodied planning, pointing &amp; affordance grounding, and visual-trace reasoning across 28 benchmarks.</p>
+      </div>
+      <div class="card reveal">
+        <div class="glow" style="background:var(--cyan)"></div>
+        <div class="icon">🦾</div>
+        <h3 data-i18n="cap.action">Action Generation</h3>
+        <p data-i18n="cap.action_desc">ActionPiece tokens encode end-effector trajectories in a unified action codebook shared across control configurations and arm setups — one generalist checkpoint drives varied robotic platforms.</p>
+      </div>
+      <div class="card reveal">
+        <div class="glow" style="background:var(--violet)"></div>
+        <div class="icon">🔮</div>
+        <h3 data-i18n="cap.future">Future-State Prediction</h3>
+        <p data-i18n="cap.future_desc">Predicts the world one step ahead as spatially aligned RGB images, depth maps, and robot masks — a multimodal world model inside the same vocabulary.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="loop">
+  <div class="container">
+    <div class="kicker reveal" data-i18n="loop.kicker">The Physical Loop</div>
+    <h2 class="sec-title reveal" data-i18n="loop.title">Observe → Reason → Act → World Changes</h2>
+    <p class="sec-lead reveal" data-i18n="loop.description">
+      Observations guide reasoning and action; actions change the world, and <b>updated observations feed back into the next round</b>.
+      PhysBrain 1.5 learns understanding, action generation, and future-state prediction within <b>one shared autoregressive model</b>.
+    </p>
+    <div class="loop-steps">
+      <div class="loop-step reveal"><div class="idx">01</div><h4 data-i18n="loop.observe">Observe</h4><p data-i18n="loop.observe_desc">Perceive 2D scenes and construct 3D spatial representations.</p></div>
+      <div class="loop-step reveal"><div class="idx">02</div><h4 data-i18n="loop.reason">Reason &amp; Ground</h4><p data-i18n="loop.reason_desc">Plan strategies, localize targets, and ground affordances.</p></div>
+      <div class="loop-step reveal"><div class="idx">03</div><h4 data-i18n="loop.act">Act</h4><p data-i18n="loop.act_desc">Generate goal-directed end-effector trajectories.</p></div>
+      <div class="loop-step reveal"><div class="idx">04</div><h4 data-i18n="loop.world">World Changes</h4><p data-i18n="loop.world_desc">Predict state transitions; new observations close the loop.</p></div>
+    </div>
+    <p class="loop-training reveal" data-i18n="loop.training">
+      <b>Learning from interaction.</b> Pre-training draws its embodied supervision entirely from human interaction videos —
+      egocentric, synchronized ego–exocentric, and panoramic recordings structured into task-centered episodes.
+      Supervised fine-tuning then combines human demonstrations, real-robot trajectories, and simulated experience.
+    </p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="arch">
+  <div class="container">
+    <div class="kicker reveal" data-i18n="arch.kicker">Architecture</div>
+    <h2 class="sec-title reveal" data-i18n="arch.title">Unified Tokens, Shared Backbone</h2>
+    <p class="sec-lead reveal" data-i18n="arch.description">
+      Built on pretrained Qwen3-VL and extended with dedicated action and visual-state tokens.
+      Semantic, motion, and future-state supervision all update the same parameters through one next-token prediction objective.
+    </p>
+    <div class="figure reveal">
+      <img src="assets/model-architecture-v2.png" alt="PhysBrain 1.5 model architecture" data-i18n-alt="alt.arch">
+    </div>
+    <p class="fig-cap reveal" data-i18n="arch.caption">PhysBrain 1.5 model architecture — language, action, and visual tokens in a single autoregressive stream.</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="results">
+  <div class="container">
+    <div class="kicker reveal" data-i18n="results.kicker">Evaluation</div>
+    <h2 class="sec-title reveal" data-i18n="results.title">Open-Source State of the Art</h2>
+    <p class="sec-lead reveal" data-i18n="results.description">
+      Across <b>28 embodied spatial-intelligence and planning benchmarks</b>, PhysBrain 1.5-8B achieves an overall score of
+      <b>72.5</b> — ranking first among open-source models and performing on par with leading proprietary systems such as
+      GPT-6-Astra (73.3) and Gemini 3.6 Flash (73.0). It ranks first on <b>14 benchmarks</b> and second on <b>10</b> among open-source models.
+    </p>
+    <div class="rank-chips reveal">
+      <span class="chip gold" data-i18n="results.chip_score">🏆 72.5 overall — #1 open-source</span>
+      <span class="chip" data-i18n="results.chip_first"><b>14×</b> first place</span>
+      <span class="chip" data-i18n="results.chip_second"><b>10×</b> second place</span>
+      <span class="chip" data-i18n="results.chip_frontier">Comparable to <b>proprietary frontier</b></span>
+    </div>
+    <div class="lb-wrap reveal">
+      <div class="lb-badge" data-i18n="results.leaderboard">Leaderboard</div>
+      <div class="figure">
+        <img src="assets/leaderboard-v5_01.png" width="5618" height="2044" alt="PhysBrain 1.5 leaderboard across embodied benchmarks" data-i18n-alt="alt.leaderboard">
+      </div>
+    </div>
+    <p class="fig-cap reveal" data-i18n="results.caption">Overall embodied-benchmark scores. All models are independently re-evaluated with one canonical metric per benchmark for direct comparability.</p>
+
+    <div style="height:56px"></div>
+    <div class="benchmark-panel reveal">
+      <div class="benchmark-intro">
+        <h3 id="benchmark-title" data-i18n="table.title">Detailed benchmark results</h3>
+        <p id="benchmark-help" data-i18n="table.help">28 benchmarks · 13 models · Scores out of 100, higher is better. Scroll to compare all models.</p>
+        <div class="benchmark-legend" aria-label="Ranking legend" data-i18n-aria-label="table.legend">
+          <span><i class="benchmark-key best" aria-hidden="true"></i><b data-i18n="table.best">Best open-source</b></span>
+          <span><i class="benchmark-key second" aria-hidden="true"></i><u data-i18n="table.second">Second-best open-source</u></span>
+          <span data-i18n="table.muted">Muted text: reference only</span>
+        </div>
+      </div>
+      <div class="benchmark-scroll" role="region" aria-labelledby="benchmark-title" aria-describedby="benchmark-help benchmark-note" tabindex="0">
+        <table class="benchmark-table">
+          <caption data-i18n="table.caption">Results on embodied understanding across 28 benchmarks. Closed-source models and PhysBrain 1.5-2B are excluded from ranking.</caption>
+          <colgroup span="1"></colgroup>
+          <colgroup span="3"></colgroup>
+          <colgroup span="10"></colgroup>
+          <thead>
+            <tr class="source-row">
+              <th scope="col" rowspan="3" class="benchmark-name" data-i18n="table.benchmark">Benchmark</th>
+              <th scope="colgroup" colspan="3" id="source-closed" class="reference" data-i18n="table.closed">Closed source</th>
+              <th scope="colgroup" colspan="10" id="source-open" class="group-start" data-i18n="table.open">Open source</th>
+            </tr>
+            <tr class="model-row">
+              <th scope="col" id="model-0" class="reference" title="Evaluation setting: Minimal thinking" data-i18n-title="setting.minimal">Gemini 3.6 Flash</th>
+              <th scope="col" id="model-1" class="reference" title="Evaluation setting: Low thinking" data-i18n-title="setting.low">GPT 6 Astra</th>
+              <th scope="col" id="model-2" class="reference" title="Evaluation setting: Adaptive low thinking" data-i18n-title="setting.adaptive">Claude Opus 5</th>
+              <th scope="col" id="model-3" class="group-start" title="Evaluation setting: Thinking enabled" data-i18n-title="setting.thinking">Hy-Emb.-VLM-1.0</th>
+              <th scope="col" id="model-4" class="">Embodied-R1.5</th>
+              <th scope="col" id="model-5" class="">RynnBrain1.1</th>
+              <th scope="col" id="model-6" class="">RoboBrain2.5</th>
+              <th scope="col" id="model-7" class="" title="Evaluation setting: Thinking enabled" data-i18n-title="setting.thinking">MiMo Embodied</th>
+              <th scope="col" id="model-8" class="">Cosmos3 Nano</th>
+              <th scope="col" id="model-9" class="">ACE-Brain-0.5</th>
+              <th scope="col" id="model-10" class="">Qwen3-VL-Inst.</th>
+              <th scope="col" id="model-11" class="reference group-start">PhysBrain 1.5</th>
+              <th scope="col" id="model-12" class="our-model">PhysBrain 1.5</th>
+            </tr>
+            <tr class="size-row">
+              <th scope="col" id="size-0" class="reference" title="Model size not specified" data-i18n-title="table.size_unknown">—</th>
+              <th scope="col" id="size-1" class="reference" title="Model size not specified" data-i18n-title="table.size_unknown">—</th>
+              <th scope="col" id="size-2" class="reference" title="Model size not specified" data-i18n-title="table.size_unknown">—</th>
+              <th scope="col" id="size-3" class="group-start">30A3B</th>
+              <th scope="col" id="size-4" class="">8B</th>
+              <th scope="col" id="size-5" class="">9B</th>
+              <th scope="col" id="size-6" class="">8B</th>
+              <th scope="col" id="size-7" class="">7B</th>
+              <th scope="col" id="size-8" class="">8B+8B</th>
+              <th scope="col" id="size-9" class="">8B</th>
+              <th scope="col" id="size-10" class="">8B</th>
+              <th scope="col" id="size-11" class="reference group-start" title="Reference only; excluded from ranking" data-i18n-title="table.reference_tip">2B</th>
+              <th scope="col" id="size-12" class="our-model">8B</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="category-row"><th colspan="14" scope="rowgroup"><span class="category-label" data-i18n="table.cat1">01 · Foundational Visual-Spatial Perception</span></th></tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-0" class="benchmark-name">BLINK</th>
+              <td headers="benchmark-0 source-closed model-0 size-0" class="reference">89.2</td>
+              <td headers="benchmark-0 source-closed model-1 size-1" class="reference">80.6</td>
+              <td headers="benchmark-0 source-closed model-2 size-2" class="reference">85.5</td>
+              <td headers="benchmark-0 source-open model-3 size-3" class="group-start score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">86.1</td>
+              <td headers="benchmark-0 source-open model-4 size-4" class="">78.6</td>
+              <td headers="benchmark-0 source-open model-5 size-5" class="">84.8</td>
+              <td headers="benchmark-0 source-open model-6 size-6" class="">80.4</td>
+              <td headers="benchmark-0 source-open model-7 size-7" class="">69.5</td>
+              <td headers="benchmark-0 source-open model-8 size-8" class="">80.6</td>
+              <td headers="benchmark-0 source-open model-9 size-9" class="">77.8</td>
+              <td headers="benchmark-0 source-open model-10 size-10" class="">81.7</td>
+              <td headers="benchmark-0 source-open model-11 size-11" class="reference group-start">81.9</td>
+              <td headers="benchmark-0 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">87.9</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-1" class="benchmark-name">CV-Bench</th>
+              <td headers="benchmark-1 source-closed model-0 size-0" class="reference">90.0</td>
+              <td headers="benchmark-1 source-closed model-1 size-1" class="reference">84.9</td>
+              <td headers="benchmark-1 source-closed model-2 size-2" class="reference">87.8</td>
+              <td headers="benchmark-1 source-open model-3 size-3" class="group-start">89.3</td>
+              <td headers="benchmark-1 source-open model-4 size-4" class="">86.9</td>
+              <td headers="benchmark-1 source-open model-5 size-5" class="">88.1</td>
+              <td headers="benchmark-1 source-open model-6 size-6" class="">88.0</td>
+              <td headers="benchmark-1 source-open model-7 size-7" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">89.4</td>
+              <td headers="benchmark-1 source-open model-8 size-8" class="">88.3</td>
+              <td headers="benchmark-1 source-open model-9 size-9" class="">85.0</td>
+              <td headers="benchmark-1 source-open model-10 size-10" class="">85.8</td>
+              <td headers="benchmark-1 source-open model-11 size-11" class="reference group-start">87.6</td>
+              <td headers="benchmark-1 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">90.0</td>
+            </tr>
+          </tbody>
+          <tbody>
+            <tr class="category-row"><th colspan="14" scope="rowgroup"><span class="category-label" data-i18n="table.cat2">02 · Spatial and Multi-view Understanding</span></th></tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-2" class="benchmark-name">3DSRBench</th>
+              <td headers="benchmark-2 source-closed model-0 size-0" class="reference">67.7</td>
+              <td headers="benchmark-2 source-closed model-1 size-1" class="reference">62.3</td>
+              <td headers="benchmark-2 source-closed model-2 size-2" class="reference">63.3</td>
+              <td headers="benchmark-2 source-open model-3 size-3" class="group-start score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">62.1</td>
+              <td headers="benchmark-2 source-open model-4 size-4" class="">52.3</td>
+              <td headers="benchmark-2 source-open model-5 size-5" class="">59.0</td>
+              <td headers="benchmark-2 source-open model-6 size-6" class="">54.7</td>
+              <td headers="benchmark-2 source-open model-7 size-7" class="">53.2</td>
+              <td headers="benchmark-2 source-open model-8 size-8" class="">53.5</td>
+              <td headers="benchmark-2 source-open model-9 size-9" class="">51.8</td>
+              <td headers="benchmark-2 source-open model-10 size-10" class="">53.6</td>
+              <td headers="benchmark-2 source-open model-11 size-11" class="reference group-start">59.3</td>
+              <td headers="benchmark-2 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">63.0</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-3" class="benchmark-name">EmbSpatial-Bench</th>
+              <td headers="benchmark-3 source-closed model-0 size-0" class="reference">84.7</td>
+              <td headers="benchmark-3 source-closed model-1 size-1" class="reference">79.8</td>
+              <td headers="benchmark-3 source-closed model-2 size-2" class="reference">81.1</td>
+              <td headers="benchmark-3 source-open model-3 size-3" class="group-start">80.5</td>
+              <td headers="benchmark-3 source-open model-4 size-4" class="">75.2</td>
+              <td headers="benchmark-3 source-open model-5 size-5" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">81.9</td>
+              <td headers="benchmark-3 source-open model-6 size-6" class="">77.9</td>
+              <td headers="benchmark-3 source-open model-7 size-7" class="">77.0</td>
+              <td headers="benchmark-3 source-open model-8 size-8" class="score-best" title="Best open-source result" data-i18n-title="table.best_tip">82.1</td>
+              <td headers="benchmark-3 source-open model-9 size-9" class="">77.9</td>
+              <td headers="benchmark-3 source-open model-10 size-10" class="">79.9</td>
+              <td headers="benchmark-3 source-open model-11 size-11" class="reference group-start">78.9</td>
+              <td headers="benchmark-3 source-open model-12 size-12" class="our-model">81.8</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-4" class="benchmark-name">MindCube</th>
+              <td headers="benchmark-4 source-closed model-0 size-0" class="reference">77.1</td>
+              <td headers="benchmark-4 source-closed model-1 size-1" class="reference">78.8</td>
+              <td headers="benchmark-4 source-closed model-2 size-2" class="reference">66.7</td>
+              <td headers="benchmark-4 source-open model-3 size-3" class="group-start">65.4</td>
+              <td headers="benchmark-4 source-open model-4 size-4" class="">30.9</td>
+              <td headers="benchmark-4 source-open model-5 size-5" class="">82.1</td>
+              <td headers="benchmark-4 source-open model-6 size-6" class="">30.4</td>
+              <td headers="benchmark-4 source-open model-7 size-7" class="">31.3</td>
+              <td headers="benchmark-4 source-open model-8 size-8" class="">39.2</td>
+              <td headers="benchmark-4 source-open model-9 size-9" class="score-best" title="Best open-source result" data-i18n-title="table.best_tip">94.2</td>
+              <td headers="benchmark-4 source-open model-10 size-10" class="">33.9</td>
+              <td headers="benchmark-4 source-open model-11 size-11" class="reference group-start">60.9</td>
+              <td headers="benchmark-4 source-open model-12 size-12" class="our-model score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">86.2</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-5" class="benchmark-name">MMSI-Bench</th>
+              <td headers="benchmark-5 source-closed model-0 size-0" class="reference">52.8</td>
+              <td headers="benchmark-5 source-closed model-1 size-1" class="reference">57.9</td>
+              <td headers="benchmark-5 source-closed model-2 size-2" class="reference">44.1</td>
+              <td headers="benchmark-5 source-open model-3 size-3" class="group-start">39.0</td>
+              <td headers="benchmark-5 source-open model-4 size-4" class="">30.1</td>
+              <td headers="benchmark-5 source-open model-5 size-5" class="score-best" title="Best open-source result" data-i18n-title="table.best_tip">46.0</td>
+              <td headers="benchmark-5 source-open model-6 size-6" class="">29.4</td>
+              <td headers="benchmark-5 source-open model-7 size-7" class="">31.8</td>
+              <td headers="benchmark-5 source-open model-8 size-8" class="">35.7</td>
+              <td headers="benchmark-5 source-open model-9 size-9" class="">35.8</td>
+              <td headers="benchmark-5 source-open model-10 size-10" class="">30.8</td>
+              <td headers="benchmark-5 source-open model-11 size-11" class="reference group-start">30.7</td>
+              <td headers="benchmark-5 source-open model-12 size-12" class="our-model score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">41.0</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-6" class="benchmark-name">Q-Spatial-Bench</th>
+              <td headers="benchmark-6 source-closed model-0 size-0" class="reference">87.1</td>
+              <td headers="benchmark-6 source-closed model-1 size-1" class="reference">68.3</td>
+              <td headers="benchmark-6 source-closed model-2 size-2" class="reference">74.3</td>
+              <td headers="benchmark-6 source-open model-3 size-3" class="group-start score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">76.2</td>
+              <td headers="benchmark-6 source-open model-4 size-4" class="">51.5</td>
+              <td headers="benchmark-6 source-open model-5 size-5" class="">66.3</td>
+              <td headers="benchmark-6 source-open model-6 size-6" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">76.2</td>
+              <td headers="benchmark-6 source-open model-7 size-7" class="">47.5</td>
+              <td headers="benchmark-6 source-open model-8 size-8" class="">46.5</td>
+              <td headers="benchmark-6 source-open model-9 size-9" class="">35.6</td>
+              <td headers="benchmark-6 source-open model-10 size-10" class="">54.5</td>
+              <td headers="benchmark-6 source-open model-11 size-11" class="reference group-start">69.3</td>
+              <td headers="benchmark-6 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">81.2</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-7" class="benchmark-name">RoboSpatial-Home</th>
+              <td headers="benchmark-7 source-closed model-0 size-0" class="reference">71.0</td>
+              <td headers="benchmark-7 source-closed model-1 size-1" class="reference">73.7</td>
+              <td headers="benchmark-7 source-closed model-2 size-2" class="reference">72.0</td>
+              <td headers="benchmark-7 source-open model-3 size-3" class="group-start">71.2</td>
+              <td headers="benchmark-7 source-open model-4 size-4" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">72.0</td>
+              <td headers="benchmark-7 source-open model-5 size-5" class="">70.4</td>
+              <td headers="benchmark-7 source-open model-6 size-6" class="">67.3</td>
+              <td headers="benchmark-7 source-open model-7 size-7" class="">60.1</td>
+              <td headers="benchmark-7 source-open model-8 size-8" class="">66.4</td>
+              <td headers="benchmark-7 source-open model-9 size-9" class="">65.9</td>
+              <td headers="benchmark-7 source-open model-10 size-10" class="">67.7</td>
+              <td headers="benchmark-7 source-open model-11 size-11" class="reference group-start">65.0</td>
+              <td headers="benchmark-7 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">73.9</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-8" class="benchmark-name">SAT</th>
+              <td headers="benchmark-8 source-closed model-0 size-0" class="reference">88.7</td>
+              <td headers="benchmark-8 source-closed model-1 size-1" class="reference">96.7</td>
+              <td headers="benchmark-8 source-closed model-2 size-2" class="reference">88.7</td>
+              <td headers="benchmark-8 source-open model-3 size-3" class="group-start score-best" title="Best open-source result" data-i18n-title="table.best_tip">81.3</td>
+              <td headers="benchmark-8 source-open model-4 size-4" class="">74.0</td>
+              <td headers="benchmark-8 source-open model-5 size-5" class="">78.0</td>
+              <td headers="benchmark-8 source-open model-6 size-6" class="">65.3</td>
+              <td headers="benchmark-8 source-open model-7 size-7" class="">76.0</td>
+              <td headers="benchmark-8 source-open model-8 size-8" class="">69.3</td>
+              <td headers="benchmark-8 source-open model-9 size-9" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">79.3</td>
+              <td headers="benchmark-8 source-open model-10 size-10" class="">70.7</td>
+              <td headers="benchmark-8 source-open model-11 size-11" class="reference group-start">73.3</td>
+              <td headers="benchmark-8 source-open model-12 size-12" class="our-model score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">79.3</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-9" class="benchmark-name">VSI-Bench</th>
+              <td headers="benchmark-9 source-closed model-0 size-0" class="reference">51.8</td>
+              <td headers="benchmark-9 source-closed model-1 size-1" class="reference">59.8</td>
+              <td headers="benchmark-9 source-closed model-2 size-2" class="reference">21.3</td>
+              <td headers="benchmark-9 source-open model-3 size-3" class="group-start">55.7</td>
+              <td headers="benchmark-9 source-open model-4 size-4" class="">56.3</td>
+              <td headers="benchmark-9 source-open model-5 size-5" class="score-best" title="Best open-source result" data-i18n-title="table.best_tip">65.9</td>
+              <td headers="benchmark-9 source-open model-6 size-6" class="">43.9</td>
+              <td headers="benchmark-9 source-open model-7 size-7" class="">45.0</td>
+              <td headers="benchmark-9 source-open model-8 size-8" class="">50.4</td>
+              <td headers="benchmark-9 source-open model-9 size-9" class="">57.9</td>
+              <td headers="benchmark-9 source-open model-10 size-10" class="">55.1</td>
+              <td headers="benchmark-9 source-open model-11 size-11" class="reference group-start">57.3</td>
+              <td headers="benchmark-9 source-open model-12 size-12" class="our-model score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">61.9</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-10" class="benchmark-name">ViewSpatial-Bench</th>
+              <td headers="benchmark-10 source-closed model-0 size-0" class="reference">56.6</td>
+              <td headers="benchmark-10 source-closed model-1 size-1" class="reference">54.2</td>
+              <td headers="benchmark-10 source-closed model-2 size-2" class="reference">49.8</td>
+              <td headers="benchmark-10 source-open model-3 size-3" class="group-start">52.4</td>
+              <td headers="benchmark-10 source-open model-4 size-4" class="">43.9</td>
+              <td headers="benchmark-10 source-open model-5 size-5" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">56.4</td>
+              <td headers="benchmark-10 source-open model-6 size-6" class="">39.3</td>
+              <td headers="benchmark-10 source-open model-7 size-7" class="">39.7</td>
+              <td headers="benchmark-10 source-open model-8 size-8" class="">55.0</td>
+              <td headers="benchmark-10 source-open model-9 size-9" class="">48.3</td>
+              <td headers="benchmark-10 source-open model-10 size-10" class="">40.3</td>
+              <td headers="benchmark-10 source-open model-11 size-11" class="reference group-start">58.1</td>
+              <td headers="benchmark-10 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">62.5</td>
+            </tr>
+          </tbody>
+          <tbody>
+            <tr class="category-row"><th colspan="14" scope="rowgroup"><span class="category-label" data-i18n="table.cat3">03 · Embodied Cognition, Reasoning, and Planning</span></th></tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-11" class="benchmark-name">COSMOS</th>
+              <td headers="benchmark-11 source-closed model-0 size-0" class="reference">65.3</td>
+              <td headers="benchmark-11 source-closed model-1 size-1" class="reference">75.7</td>
+              <td headers="benchmark-11 source-closed model-2 size-2" class="reference">71.0</td>
+              <td headers="benchmark-11 source-open model-3 size-3" class="group-start">64.5</td>
+              <td headers="benchmark-11 source-open model-4 size-4" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">67.5</td>
+              <td headers="benchmark-11 source-open model-5 size-5" class="">64.3</td>
+              <td headers="benchmark-11 source-open model-6 size-6" class="">57.7</td>
+              <td headers="benchmark-11 source-open model-7 size-7" class="">56.5</td>
+              <td headers="benchmark-11 source-open model-8 size-8" class="">66.8</td>
+              <td headers="benchmark-11 source-open model-9 size-9" class="">46.5</td>
+              <td headers="benchmark-11 source-open model-10 size-10" class="">60.6</td>
+              <td headers="benchmark-11 source-open model-11 size-11" class="reference group-start">71.2</td>
+              <td headers="benchmark-11 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">72.8</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-12" class="benchmark-name">EgoPlan-Bench2</th>
+              <td headers="benchmark-12 source-closed model-0 size-0" class="reference">53.1</td>
+              <td headers="benchmark-12 source-closed model-1 size-1" class="reference">69.3</td>
+              <td headers="benchmark-12 source-closed model-2 size-2" class="reference">48.4</td>
+              <td headers="benchmark-12 source-open model-3 size-3" class="group-start">47.5</td>
+              <td headers="benchmark-12 source-open model-4 size-4" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">53.1</td>
+              <td headers="benchmark-12 source-open model-5 size-5" class="">37.0</td>
+              <td headers="benchmark-12 source-open model-6 size-6" class="">33.8</td>
+              <td headers="benchmark-12 source-open model-7 size-7" class="">37.9</td>
+              <td headers="benchmark-12 source-open model-8 size-8" class="">42.6</td>
+              <td headers="benchmark-12 source-open model-9 size-9" class="">33.5</td>
+              <td headers="benchmark-12 source-open model-10 size-10" class="">32.1</td>
+              <td headers="benchmark-12 source-open model-11 size-11" class="reference group-start">56.1</td>
+              <td headers="benchmark-12 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">62.1</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-13" class="benchmark-name">ERQA</th>
+              <td headers="benchmark-13 source-closed model-0 size-0" class="reference">72.3</td>
+              <td headers="benchmark-13 source-closed model-1 size-1" class="reference">75.8</td>
+              <td headers="benchmark-13 source-closed model-2 size-2" class="reference">61.5</td>
+              <td headers="benchmark-13 source-open model-3 size-3" class="group-start score-best" title="Best open-source result" data-i18n-title="table.best_tip">56.3</td>
+              <td headers="benchmark-13 source-open model-4 size-4" class="">42.3</td>
+              <td headers="benchmark-13 source-open model-5 size-5" class="">46.5</td>
+              <td headers="benchmark-13 source-open model-6 size-6" class="">44.3</td>
+              <td headers="benchmark-13 source-open model-7 size-7" class="">44.8</td>
+              <td headers="benchmark-13 source-open model-8 size-8" class="">47.5</td>
+              <td headers="benchmark-13 source-open model-9 size-9" class="">45.3</td>
+              <td headers="benchmark-13 source-open model-10 size-10" class="">42.5</td>
+              <td headers="benchmark-13 source-open model-11 size-11" class="reference group-start">44.0</td>
+              <td headers="benchmark-13 source-open model-12 size-12" class="our-model score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">52.8</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-14" class="benchmark-name">ERQA-PLUS</th>
+              <td headers="benchmark-14 source-closed model-0 size-0" class="reference">92.2</td>
+              <td headers="benchmark-14 source-closed model-1 size-1" class="reference">86.1</td>
+              <td headers="benchmark-14 source-closed model-2 size-2" class="reference">88.3</td>
+              <td headers="benchmark-14 source-open model-3 size-3" class="group-start">82.2</td>
+              <td headers="benchmark-14 source-open model-4 size-4" class="">80.7</td>
+              <td headers="benchmark-14 source-open model-5 size-5" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">83.6</td>
+              <td headers="benchmark-14 source-open model-6 size-6" class="">81.1</td>
+              <td headers="benchmark-14 source-open model-7 size-7" class="">81.1</td>
+              <td headers="benchmark-14 source-open model-8 size-8" class="">83.5</td>
+              <td headers="benchmark-14 source-open model-9 size-9" class="">81.4</td>
+              <td headers="benchmark-14 source-open model-10 size-10" class="">82.5</td>
+              <td headers="benchmark-14 source-open model-11 size-11" class="reference group-start">79.2</td>
+              <td headers="benchmark-14 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">85.2</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-15" class="benchmark-name">RoboVQA</th>
+              <td headers="benchmark-15 source-closed model-0 size-0" class="reference">41.7</td>
+              <td headers="benchmark-15 source-closed model-1 size-1" class="reference">37.0</td>
+              <td headers="benchmark-15 source-closed model-2 size-2" class="reference">36.0</td>
+              <td headers="benchmark-15 source-open model-3 size-3" class="group-start">41.2</td>
+              <td headers="benchmark-15 source-open model-4 size-4" class="">60.8</td>
+              <td headers="benchmark-15 source-open model-5 size-5" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">60.9</td>
+              <td headers="benchmark-15 source-open model-6 size-6" class="">48.4</td>
+              <td headers="benchmark-15 source-open model-7 size-7" class="">55.5</td>
+              <td headers="benchmark-15 source-open model-8 size-8" class="">51.5</td>
+              <td headers="benchmark-15 source-open model-9 size-9" class="">44.7</td>
+              <td headers="benchmark-15 source-open model-10 size-10" class="">58.5</td>
+              <td headers="benchmark-15 source-open model-11 size-11" class="reference group-start">62.9</td>
+              <td headers="benchmark-15 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">61.5</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-16" class="benchmark-name">VLABench</th>
+              <td headers="benchmark-16 source-closed model-0 size-0" class="reference">64.7</td>
+              <td headers="benchmark-16 source-closed model-1 size-1" class="reference">66.3</td>
+              <td headers="benchmark-16 source-closed model-2 size-2" class="reference">60.3</td>
+              <td headers="benchmark-16 source-open model-3 size-3" class="group-start score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">50.9</td>
+              <td headers="benchmark-16 source-open model-4 size-4" class="">40.9</td>
+              <td headers="benchmark-16 source-open model-5 size-5" class="">42.4</td>
+              <td headers="benchmark-16 source-open model-6 size-6" class="">37.6</td>
+              <td headers="benchmark-16 source-open model-7 size-7" class="">39.9</td>
+              <td headers="benchmark-16 source-open model-8 size-8" class="">48.7</td>
+              <td headers="benchmark-16 source-open model-9 size-9" class="">29.1</td>
+              <td headers="benchmark-16 source-open model-10 size-10" class="">44.8</td>
+              <td headers="benchmark-16 source-open model-11 size-11" class="reference group-start">73.4</td>
+              <td headers="benchmark-16 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">76.4</td>
+            </tr>
+          </tbody>
+          <tbody>
+            <tr class="category-row"><th colspan="14" scope="rowgroup"><span class="category-label" data-i18n="table.cat4">04 · Spatial Grounding, Pointing, and Affordance</span></th></tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-17" class="benchmark-name">Part-Affordance</th>
+              <td headers="benchmark-17 source-closed model-0 size-0" class="reference">64.7</td>
+              <td headers="benchmark-17 source-closed model-1 size-1" class="reference">55.0</td>
+              <td headers="benchmark-17 source-closed model-2 size-2" class="reference">78.1</td>
+              <td headers="benchmark-17 source-open model-3 size-3" class="group-start">62.8</td>
+              <td headers="benchmark-17 source-open model-4 size-4" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">83.4</td>
+              <td headers="benchmark-17 source-open model-5 size-5" class="">40.5</td>
+              <td headers="benchmark-17 source-open model-6 size-6" class="">24.7</td>
+              <td headers="benchmark-17 source-open model-7 size-7" class="">61.9</td>
+              <td headers="benchmark-17 source-open model-8 size-8" class="">33.3</td>
+              <td headers="benchmark-17 source-open model-9 size-9" class="">36.3</td>
+              <td headers="benchmark-17 source-open model-10 size-10" class="">56.4</td>
+              <td headers="benchmark-17 source-open model-11 size-11" class="reference group-start">83.7</td>
+              <td headers="benchmark-17 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">84.0</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-18" class="benchmark-name">PIOBench</th>
+              <td headers="benchmark-18 source-closed model-0 size-0" class="reference">80.9</td>
+              <td headers="benchmark-18 source-closed model-1 size-1" class="reference">79.7</td>
+              <td headers="benchmark-18 source-closed model-2 size-2" class="reference">71.6</td>
+              <td headers="benchmark-18 source-open model-3 size-3" class="group-start">62.6</td>
+              <td headers="benchmark-18 source-open model-4 size-4" class="">61.5</td>
+              <td headers="benchmark-18 source-open model-5 size-5" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">64.8</td>
+              <td headers="benchmark-18 source-open model-6 size-6" class="">62.3</td>
+              <td headers="benchmark-18 source-open model-7 size-7" class="">56.2</td>
+              <td headers="benchmark-18 source-open model-8 size-8" class="">64.3</td>
+              <td headers="benchmark-18 source-open model-9 size-9" class="">60.4</td>
+              <td headers="benchmark-18 source-open model-10 size-10" class="">53.7</td>
+              <td headers="benchmark-18 source-open model-11 size-11" class="reference group-start">54.4</td>
+              <td headers="benchmark-18 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">68.3</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-19" class="benchmark-name">PixMo-Points</th>
+              <td headers="benchmark-19 source-closed model-0 size-0" class="reference">74.8</td>
+              <td headers="benchmark-19 source-closed model-1 size-1" class="reference">75.2</td>
+              <td headers="benchmark-19 source-closed model-2 size-2" class="reference">56.7</td>
+              <td headers="benchmark-19 source-open model-3 size-3" class="group-start">55.8</td>
+              <td headers="benchmark-19 source-open model-4 size-4" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">65.3</td>
+              <td headers="benchmark-19 source-open model-5 size-5" class="">29.9</td>
+              <td headers="benchmark-19 source-open model-6 size-6" class="">57.3</td>
+              <td headers="benchmark-19 source-open model-7 size-7" class="">51.5</td>
+              <td headers="benchmark-19 source-open model-8 size-8" class="">60.5</td>
+              <td headers="benchmark-19 source-open model-9 size-9" class="score-best" title="Best open-source result" data-i18n-title="table.best_tip">65.6</td>
+              <td headers="benchmark-19 source-open model-10 size-10" class="">53.7</td>
+              <td headers="benchmark-19 source-open model-11 size-11" class="reference group-start">52.3</td>
+              <td headers="benchmark-19 source-open model-12 size-12" class="our-model">62.2</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-20" class="benchmark-name">PointBench</th>
+              <td headers="benchmark-20 source-closed model-0 size-0" class="reference">69.6</td>
+              <td headers="benchmark-20 source-closed model-1 size-1" class="reference">71.9</td>
+              <td headers="benchmark-20 source-closed model-2 size-2" class="reference">68.6</td>
+              <td headers="benchmark-20 source-open model-3 size-3" class="group-start">61.1</td>
+              <td headers="benchmark-20 source-open model-4 size-4" class="score-best" title="Best open-source result" data-i18n-title="table.best_tip">64.5</td>
+              <td headers="benchmark-20 source-open model-5 size-5" class="">45.5</td>
+              <td headers="benchmark-20 source-open model-6 size-6" class="">61.7</td>
+              <td headers="benchmark-20 source-open model-7 size-7" class="">51.6</td>
+              <td headers="benchmark-20 source-open model-8 size-8" class="">62.8</td>
+              <td headers="benchmark-20 source-open model-9 size-9" class="">63.0</td>
+              <td headers="benchmark-20 source-open model-10 size-10" class="">61.5</td>
+              <td headers="benchmark-20 source-open model-11 size-11" class="reference group-start">59.2</td>
+              <td headers="benchmark-20 source-open model-12 size-12" class="our-model score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">64.3</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-21" class="benchmark-name">RefSpatial-Bench</th>
+              <td headers="benchmark-21 source-closed model-0 size-0" class="reference">76.4</td>
+              <td headers="benchmark-21 source-closed model-1 size-1" class="reference">78.0</td>
+              <td headers="benchmark-21 source-closed model-2 size-2" class="reference">56.3</td>
+              <td headers="benchmark-21 source-open model-3 size-3" class="group-start">47.4</td>
+              <td headers="benchmark-21 source-open model-4 size-4" class="">55.2</td>
+              <td headers="benchmark-21 source-open model-5 size-5" class="score-best" title="Best open-source result" data-i18n-title="table.best_tip">63.2</td>
+              <td headers="benchmark-21 source-open model-6 size-6" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">59.9</td>
+              <td headers="benchmark-21 source-open model-7 size-7" class="">40.0</td>
+              <td headers="benchmark-21 source-open model-8 size-8" class="">52.8</td>
+              <td headers="benchmark-21 source-open model-9 size-9" class="">53.3</td>
+              <td headers="benchmark-21 source-open model-10 size-10" class="">43.6</td>
+              <td headers="benchmark-21 source-open model-11 size-11" class="reference group-start">37.6</td>
+              <td headers="benchmark-21 source-open model-12 size-12" class="our-model">50.9</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-22" class="benchmark-name">RoboAfford</th>
+              <td headers="benchmark-22 source-closed model-0 size-0" class="reference">83.4</td>
+              <td headers="benchmark-22 source-closed model-1 size-1" class="reference">84.6</td>
+              <td headers="benchmark-22 source-closed model-2 size-2" class="reference">82.3</td>
+              <td headers="benchmark-22 source-open model-3 size-3" class="group-start">75.8</td>
+              <td headers="benchmark-22 source-open model-4 size-4" class="">76.9</td>
+              <td headers="benchmark-22 source-open model-5 size-5" class="">74.0</td>
+              <td headers="benchmark-22 source-open model-6 size-6" class="">71.7</td>
+              <td headers="benchmark-22 source-open model-7 size-7" class="">71.8</td>
+              <td headers="benchmark-22 source-open model-8 size-8" class="score-best" title="Best open-source result" data-i18n-title="table.best_tip">81.1</td>
+              <td headers="benchmark-22 source-open model-9 size-9" class="">71.8</td>
+              <td headers="benchmark-22 source-open model-10 size-10" class="">66.8</td>
+              <td headers="benchmark-22 source-open model-11 size-11" class="reference group-start">75.9</td>
+              <td headers="benchmark-22 source-open model-12 size-12" class="our-model score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">80.4</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-23" class="benchmark-name">RoboRefit</th>
+              <td headers="benchmark-23 source-closed model-0 size-0" class="reference">85.9</td>
+              <td headers="benchmark-23 source-closed model-1 size-1" class="reference">85.1</td>
+              <td headers="benchmark-23 source-closed model-2 size-2" class="reference">83.5</td>
+              <td headers="benchmark-23 source-open model-3 size-3" class="group-start">82.5</td>
+              <td headers="benchmark-23 source-open model-4 size-4" class="">86.1</td>
+              <td headers="benchmark-23 source-open model-5 size-5" class="">81.9</td>
+              <td headers="benchmark-23 source-open model-6 size-6" class="">82.8</td>
+              <td headers="benchmark-23 source-open model-7 size-7" class="">75.5</td>
+              <td headers="benchmark-23 source-open model-8 size-8" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">86.2</td>
+              <td headers="benchmark-23 source-open model-9 size-9" class="">84.6</td>
+              <td headers="benchmark-23 source-open model-10 size-10" class="">81.3</td>
+              <td headers="benchmark-23 source-open model-11 size-11" class="reference group-start">86.8</td>
+              <td headers="benchmark-23 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">89.6</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-24" class="benchmark-name">VABench-Point</th>
+              <td headers="benchmark-24 source-closed model-0 size-0" class="reference">60.7</td>
+              <td headers="benchmark-24 source-closed model-1 size-1" class="reference">65.3</td>
+              <td headers="benchmark-24 source-closed model-2 size-2" class="reference">64.7</td>
+              <td headers="benchmark-24 source-open model-3 size-3" class="group-start">60.5</td>
+              <td headers="benchmark-24 source-open model-4 size-4" class="score-best" title="Best open-source result" data-i18n-title="table.best_tip">75.7</td>
+              <td headers="benchmark-24 source-open model-5 size-5" class="">15.8</td>
+              <td headers="benchmark-24 source-open model-6 size-6" class="">10.6</td>
+              <td headers="benchmark-24 source-open model-7 size-7" class="">47.7</td>
+              <td headers="benchmark-24 source-open model-8 size-8" class="">53.2</td>
+              <td headers="benchmark-24 source-open model-9 size-9" class="">5.3</td>
+              <td headers="benchmark-24 source-open model-10 size-10" class="">46.3</td>
+              <td headers="benchmark-24 source-open model-11 size-11" class="reference group-start">60.3</td>
+              <td headers="benchmark-24 source-open model-12 size-12" class="our-model score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">65.2</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-25" class="benchmark-name">Where2Place</th>
+              <td headers="benchmark-25 source-closed model-0 size-0" class="reference">73.4</td>
+              <td headers="benchmark-25 source-closed model-1 size-1" class="reference">76.9</td>
+              <td headers="benchmark-25 source-closed model-2 size-2" class="reference">69.0</td>
+              <td headers="benchmark-25 source-open model-3 size-3" class="group-start">65.4</td>
+              <td headers="benchmark-25 source-open model-4 size-4" class="score-best" title="Best open-source result" data-i18n-title="table.best_tip">75.0</td>
+              <td headers="benchmark-25 source-open model-5 size-5" class="">72.7</td>
+              <td headers="benchmark-25 source-open model-6 size-6" class="">72.0</td>
+              <td headers="benchmark-25 source-open model-7 size-7" class="">63.9</td>
+              <td headers="benchmark-25 source-open model-8 size-8" class="score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">74.4</td>
+              <td headers="benchmark-25 source-open model-9 size-9" class="">56.0</td>
+              <td headers="benchmark-25 source-open model-10 size-10" class="">64.7</td>
+              <td headers="benchmark-25 source-open model-11 size-11" class="reference group-start">70.7</td>
+              <td headers="benchmark-25 source-open model-12 size-12" class="our-model">72.1</td>
+            </tr>
+          </tbody>
+          <tbody>
+            <tr class="category-row"><th colspan="14" scope="rowgroup"><span class="category-label" data-i18n="table.cat5">05 · Visual Trace and Trajectory Reasoning</span></th></tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-26" class="benchmark-name">ShareRobot-Traj.</th>
+              <td headers="benchmark-26 source-closed model-0 size-0" class="reference">82.8</td>
+              <td headers="benchmark-26 source-closed model-1 size-1" class="reference">83.1</td>
+              <td headers="benchmark-26 source-closed model-2 size-2" class="reference">81.9</td>
+              <td headers="benchmark-26 source-open model-3 size-3" class="group-start">84.5</td>
+              <td headers="benchmark-26 source-open model-4 size-4" class="">84.0</td>
+              <td headers="benchmark-26 source-open model-5 size-5" class="">79.3</td>
+              <td headers="benchmark-26 source-open model-6 size-6" class="score-best" title="Best open-source result" data-i18n-title="table.best_tip">85.2</td>
+              <td headers="benchmark-26 source-open model-7 size-7" class="">69.0</td>
+              <td headers="benchmark-26 source-open model-8 size-8" class="">80.9</td>
+              <td headers="benchmark-26 source-open model-9 size-9" class="">82.1</td>
+              <td headers="benchmark-26 source-open model-10 size-10" class="">78.2</td>
+              <td headers="benchmark-26 source-open model-11 size-11" class="reference group-start">85.0</td>
+              <td headers="benchmark-26 source-open model-12 size-12" class="our-model score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">84.9</td>
+            </tr>
+            <tr class="benchmark-row">
+              <th scope="row" id="benchmark-27" class="benchmark-name">VABench-V.-Trace</th>
+              <td headers="benchmark-27 source-closed model-0 size-0" class="reference">84.2</td>
+              <td headers="benchmark-27 source-closed model-1 size-1" class="reference">91.6</td>
+              <td headers="benchmark-27 source-closed model-2 size-2" class="reference">88.9</td>
+              <td headers="benchmark-27 source-open model-3 size-3" class="group-start">87.5</td>
+              <td headers="benchmark-27 source-open model-4 size-4" class="score-best" title="Best open-source result" data-i18n-title="table.best_tip">92.3</td>
+              <td headers="benchmark-27 source-open model-5 size-5" class="">86.6</td>
+              <td headers="benchmark-27 source-open model-6 size-6" class="">85.4</td>
+              <td headers="benchmark-27 source-open model-7 size-7" class="">82.1</td>
+              <td headers="benchmark-27 source-open model-8 size-8" class="">88.3</td>
+              <td headers="benchmark-27 source-open model-9 size-9" class="">82.7</td>
+              <td headers="benchmark-27 source-open model-10 size-10" class="">84.4</td>
+              <td headers="benchmark-27 source-open model-11 size-11" class="reference group-start">88.9</td>
+              <td headers="benchmark-27 source-open model-12 size-12" class="our-model score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">89.8</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="overall-row">
+              <th scope="row" id="benchmark-28" class="benchmark-name" data-i18n="table.overall">Overall Average</th>
+              <td headers="benchmark-28 source-closed model-0 size-0" class="reference">73.0</td>
+              <td headers="benchmark-28 source-closed model-1 size-1" class="reference">73.3</td>
+              <td headers="benchmark-28 source-closed model-2 size-2" class="reference">67.9</td>
+              <td headers="benchmark-28 source-open model-3 size-3" class="group-start score-second" title="Second-best open-source result" data-i18n-title="table.second_tip">66.0</td>
+              <td headers="benchmark-28 source-open model-4 size-4" class="">64.9</td>
+              <td headers="benchmark-28 source-open model-5 size-5" class="">63.1</td>
+              <td headers="benchmark-28 source-open model-6 size-6" class="">58.2</td>
+              <td headers="benchmark-28 source-open model-7 size-7" class="">57.4</td>
+              <td headers="benchmark-28 source-open model-8 size-8" class="">62.3</td>
+              <td headers="benchmark-28 source-open model-9 size-9" class="">59.0</td>
+              <td headers="benchmark-28 source-open model-10 size-10" class="">59.5</td>
+              <td headers="benchmark-28 source-open model-11 size-11" class="reference group-start">66.6</td>
+              <td headers="benchmark-28 source-open model-12 size-12" class="our-model score-best" title="Best open-source result" data-i18n-title="table.best_tip">72.5</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="benchmark-note" id="benchmark-note" data-i18n="table.note">Closed-source models and PhysBrain 1.5-2B are shown for reference and excluded from ranking. Best and second-best results include ties. Overall Average is the unweighted mean across the 28 benchmarks at the reported precision.</p>
+    </div>
+
+    <div class="cat-list">
+      <div class="cat reveal"><div class="n">C1</div><div><h4 data-i18n="cat.perception">Foundational Visual-Spatial Perception</h4><p data-i18n="cat.perception_desc">Object counting, spatial relationships, relative depth, metric size estimation.</p></div></div>
+      <div class="cat reveal"><div class="n">C2</div><div><h4 data-i18n="cat.spatial">3D &amp; Multi-View Understanding</h4><p data-i18n="cat.spatial_desc">Metric distance estimation, room area, egocentric motion under viewpoint shifts.</p></div></div>
+      <div class="cat reveal"><div class="n">C3</div><div><h4 data-i18n="cat.planning">Embodied Cognition &amp; Planning</h4><p data-i18n="cat.planning_desc">Past-action description, counterfactual prediction, goal decomposition, outcome estimation.</p></div></div>
+      <div class="cat reveal"><div class="n">C4</div><div><h4 data-i18n="cat.grounding">Grounding, Pointing &amp; Affordance</h4><p data-i18n="cat.grounding_desc">Point-level grounding, target localization, functional affordance identification.</p></div></div>
+      <div class="cat reveal"><div class="n">C5</div><div><h4 data-i18n="cat.trace">Visual Trace &amp; Trajectory Reasoning</h4><p data-i18n="cat.trace_desc">Obstacle-free waypoints, object rearrangement, contact-rich manipulation traces.</p></div></div>
+      <div class="cat reveal"><div class="n">C6</div><div><h4 data-i18n="cat.future">Action &amp; Future Prediction</h4><p data-i18n="cat.future_desc">End-effector trajectory chunks and RGB + depth + robot-mask future states.</p></div></div>
+    </div>
+
+    <div style="height:56px"></div>
+    <div class="figure reveal">
+      <img src="assets/evaluation-cases-v6.png" alt="Qualitative evaluation cases of embodied spatial intelligence and planning" data-i18n-alt="alt.cases">
+    </div>
+    <p class="fig-cap reveal" data-i18n="results.cases">Qualitative examples of embodied spatial intelligence and planning.</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="action">
+  <div class="container two-col">
+    <div>
+      <div class="kicker reveal" data-i18n="action.kicker">Action Prediction</div>
+      <h2 class="sec-title reveal" data-i18n="action.title">One Checkpoint,<br>Many Robots</h2>
+      <p class="sec-lead reveal" style="margin-bottom:0" data-i18n="action.description">
+        Given a task instruction, current observations, and optional recent action history, PhysBrain 1.5 predicts the next
+        end-effector action chunk as a compact sequence of <b>ActionPiece tokens</b>. A unified action codebook and vocabulary
+        are shared across diverse control configurations and arm setups, enabling a single generalist checkpoint to drive
+        varied robotic platforms and manipulation settings.
+      </p>
+    </div>
+    <div>
+      <div class="figure reveal">
+        <img src="assets/case-action-trajectory.png" alt="Qualitative results of action trajectory prediction" data-i18n-alt="alt.action">
+      </div>
+      <p class="fig-cap reveal" data-i18n="action.caption">Qualitative results of action trajectory prediction.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="future">
+  <div class="container two-col">
+    <div>
+      <div class="figure reveal">
+        <img src="assets/case-future-prediction-v2.png" alt="Future visual prediction across diverse robot embodiments" data-i18n-alt="alt.future">
+      </div>
+      <p class="fig-cap reveal" data-i18n="future.caption">Future visual prediction across diverse robot embodiments.</p>
+    </div>
+    <div>
+      <div class="kicker reveal" data-i18n="cap.future">Future-State Prediction</div>
+      <h2 class="sec-title reveal" data-i18n="future.title">Anticipating How<br>the World Changes</h2>
+      <p class="sec-lead reveal" style="margin-bottom:0" data-i18n="future.description">
+        Given the current observation and a task instruction, PhysBrain 1.5 anticipates how actions may reshape the environment.
+        It represents a possible future world state through spatially aligned <b>RGB imagery, depth maps, and robot masks</b>
+        across diverse robot embodiments.
+      </p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="start">
+  <div class="container">
+    <div class="kicker reveal" data-i18n="nav.start">Quick Start</div>
+    <h2 class="sec-title reveal" data-i18n="start.title">Standard Interface, Instant Integration</h2>
+    <p class="sec-lead reveal" data-i18n="start.description">
+      PhysBrain 1.5 uses pretrained Qwen3-VL as its backbone with an extended vocabulary. Its standard model interface lets you
+      reuse existing infrastructure for inference and post-training.
+    </p>
+    <div class="eco reveal">
+      <span>Transformers</span><span>vLLM</span><span>SGLang</span><span>LLaMA-Factory</span><span>ms-swift</span><span>veRL</span>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="cite">
+  <div class="container">
+    <div class="kicker reveal" data-i18n="nav.cite">Citation</div>
+    <h2 class="sec-title reveal" data-i18n="cite.title">Cite PhysBrain 1.5</h2>
+    <p class="sec-lead reveal" data-i18n="cite.description">If you use PhysBrain 1.5 in your research, please cite our technical report.</p>
+    <div class="code-block reveal">
+      <div class="code-head">
+        <span style="background:#ff5f57"></span><span style="background:#febc2e"></span><span style="background:#28c840"></span>
+        <span style="font-family:'JetBrains Mono';font-size:.75rem;color:var(--dim);margin-left:10px">citation.bib</span>
+      </div>
+      <pre><span class="kw">@misc</span>{physbrain1.5,
+  title  = {PhysBrain 1.5 Technical Report},
+  author = {{DeepCybo Team}},
+  year   = {2026},
+  url    = {https://github.com/DeepCybo-PhysAI/PhysBrain-1.5}
+}</pre>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <h3 style="font-size:1.2rem">PhysBrain 1.5</h3>
+    <div class="foot-logos">
+      <img class="deepcybo-logo" src="assets/deepcybo.png" width="1043" height="239" alt="DeepCybo">
+      <img class="zgca-logo" src="assets/zgca.png" width="1574" height="313" alt="Zhongguancun Academy and Zhongguancun Institute of Artificial Intelligence" data-i18n-alt="alt.institutes">
+    </div>
+    <p data-i18n="footer.description">An embodied foundation model unifying understanding, action generation, and future-state prediction.</p>
+    <div class="foot-links">
+      <a href="https://huggingface.co/collections/DeepCybo/physbrain-15" target="_blank" rel="noopener">Hugging Face</a>
+      <a href="https://huggingface.co/spaces/hugging-apps/physbrain1-5-8b-demo" target="_blank" rel="noopener" data-i18n="link.footer_demo">Demo</a>
+      <a href="https://github.com/DeepCybo-PhysAI/PhysBrain-1.5" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit" target="_blank" rel="noopener">PhysBrainEvalKit</a>
+    </div>
+    <p style="margin-top:26px;opacity:.6" data-i18n="footer.copyright">© 2026 DeepCybo Team · PhysBrain 1.5 Technical Report</p>
+  </div>
+</footer>
+
+<script src="i18n.js"></script>
+<script>
+/* Keep the control independent of background effects. */
+const themeToggle=document.getElementById('theme-toggle');
+const themePicker=document.getElementById('theme-picker');
+const paletteOptions=document.querySelectorAll('[data-palette-option]');
+let particleRGB;
+function updatePalette(){
+  document.documentElement.dataset.palette=palettePreference;
+  paletteOptions.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.paletteOption===palettePreference)));
+  particleRGB=getComputedStyle(document.documentElement).getPropertyValue('--secondary-rgb').trim();
+}
+updatePalette();
+paletteOptions.forEach(button=>button.addEventListener('click',()=>{
+  palettePreference=button.dataset.paletteOption;
+  updatePalette();
+  try{localStorage.setItem(palettePreferenceKey,palettePreference);}catch{}
+}));
+document.addEventListener('click',event=>{
+  if(!themePicker.contains(event.target))themePicker.open=false;
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&themePicker.open){
+    themePicker.open=false;
+    themePicker.querySelector('summary').focus();
+  }
+});
+function updateThemeLabel(){
+  const light=document.documentElement.dataset.theme==='light';
+  const label=window.physbrainI18n?.t(light?'theme.to_dark':'theme.to_light')||(light?'Switch to dark theme':'Switch to light theme');
+  themeToggle.setAttribute('aria-label',label);
+  themeToggle.title=label;
+  document.getElementById('theme-appearance-label').textContent=window.physbrainI18n?.t(light?'theme.light':'theme.dark')||(light?'Light appearance':'Dark appearance');
+  updatePalette();
+}
+updateThemeLabel();
+document.addEventListener('languagechange',updateThemeLabel);
+themeToggle.addEventListener('click',()=>{
+  themePreference=document.documentElement.dataset.theme==='light'?'dark':'light';
+  applyTheme(themePreference);
+  updateThemeLabel();
+  try{localStorage.setItem(themePreferenceKey,themePreference);}catch{}
+});
+systemTheme.addEventListener('change',()=>{
+  if(!themePreference){
+    applyTheme(systemTheme.matches?'dark':'light');
+    updateThemeLabel();
+  }
+});
+
+/* particle network background */
+const cv=document.getElementById('bg-canvas'),ctx=cv.getContext('2d');
+let W,H,pts=[];
+function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight;
+  const n=Math.min(110,Math.floor(W*H/16000));
+  pts=Array.from({length:n},()=>({x:Math.random()*W,y:Math.random()*H,
+    vx:(Math.random()-.5)*.35,vy:(Math.random()-.5)*.35,r:Math.random()*1.6+.6}));}
+resize();addEventListener('resize',resize);
+(function tick(){
+  ctx.clearRect(0,0,W,H);
+  for(const p of pts){
+    p.x+=p.vx;p.y+=p.vy;
+    if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);
+    ctx.fillStyle=`rgba(${particleRGB},.5)`;ctx.fill();
+  }
+  for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){
+    const a=pts[i],b=pts[j],d=(a.x-b.x)**2+(a.y-b.y)**2;
+    if(d<150*150){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+      ctx.strokeStyle=`rgba(${particleRGB},${(1-d/22500)*.16})`;ctx.lineWidth=1;ctx.stroke();}
+  }
+  requestAnimationFrame(tick);
+})();
+
+/* scroll reveal */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}
+}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
