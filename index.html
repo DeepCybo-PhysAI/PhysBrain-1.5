@@ -204,9 +204,6 @@ header{min-height:100svh;display:flex;align-items:center;padding:130px 0 70px;po
 .btn-primary:hover{box-shadow:0 12px 42px rgba(var(--secondary-rgb),.55)}
 .btn-ghost{border-color:var(--border);color:var(--text);background:var(--panel)}
 .btn-ghost:hover{border-color:rgba(var(--accent-rgb),.5);box-shadow:0 8px 30px rgba(var(--accent-rgb),.12)}
-.btn-pending{border-color:var(--border);background:var(--panel);color:var(--dim);cursor:default;line-height:inherit}
-.btn-pending:hover{transform:none}
-.btn-status{font-family:'Inter',system-ui,sans-serif;font-size:.68rem;font-weight:500;border:1px solid var(--border);border-radius:6px;padding:2px 6px}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;max-width:860px}
 @media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
 .stat{border:1px solid var(--border);border-radius:16px;padding:20px 22px;background:var(--panel);position:relative;overflow:hidden}
@@ -429,10 +426,8 @@ footer p{color:var(--dim);font-size:.85rem}
     </p>
     <div class="btn-row">
       <a class="btn btn-primary" href="https://huggingface.co/collections/DeepCybo/physbrain-15" target="_blank" rel="noopener" data-i18n="link.weights">🤗 Model Weights</a>
-      <!-- TODO: Replace this disabled button with an <a> linking to the paper when its URL is available. -->
-      <button class="btn btn-pending" type="button" disabled title="Paper link coming soon" data-i18n-title="paper.pending"><span aria-hidden="true">📄</span> <span data-i18n="link.paper">Paper</span> <span class="btn-status" data-i18n="link.soon">Coming soon</span></button>
+      <a class="btn btn-ghost" id="paper-download" href="assets/physbrain1.5_tech_report.pdf" download="physbrain1.5_tech_report.pdf" title="Download the paper" data-i18n-title="paper.download"><span aria-hidden="true">📄</span> <span data-i18n="link.paper">Paper</span></a>
       <a class="btn btn-ghost" href="https://huggingface.co/spaces/hugging-apps/physbrain1-5-8b-demo" target="_blank" rel="noopener" data-i18n="link.demo">▶ Live Demo</a>
-      <a class="btn btn-ghost" href="https://github.com/DeepCybo-PhysAI/PhysBrain-1.5" target="_blank" rel="noopener">&lt;/&gt; GitHub</a>
       <a class="btn btn-ghost" href="https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit" target="_blank" rel="noopener" data-i18n="link.eval">📐 EvalKit</a>
     </div>
     <div class="stats">
@@ -1194,7 +1189,6 @@ footer p{color:var(--dim);font-size:.85rem}
     <div class="foot-links">
       <a href="https://huggingface.co/collections/DeepCybo/physbrain-15" target="_blank" rel="noopener">Hugging Face</a>
       <a href="https://huggingface.co/spaces/hugging-apps/physbrain1-5-8b-demo" target="_blank" rel="noopener" data-i18n="link.footer_demo">Demo</a>
-      <a href="https://github.com/DeepCybo-PhysAI/PhysBrain-1.5" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit" target="_blank" rel="noopener">PhysBrainEvalKit</a>
     </div>
     <p style="margin-top:26px;opacity:.6" data-i18n="footer.copyright">© 2026 DeepCybo Team · PhysBrain 1.5 Technical Report</p>
@@ -1203,6 +1197,12 @@ footer p{color:var(--dim);font-size:.85rem}
 
 <script src="i18n.js"></script>
 <script>
+/* Confirm before allowing the browser's native same-origin PDF download. */
+document.getElementById('paper-download').addEventListener('click',event=>{
+  const message=window.physbrainI18n?.t('paper.confirm')||'Download the PhysBrain 1.5 paper?';
+  if(!window.confirm(message))event.preventDefault();
+});
+
 /* Keep the control independent of background effects. */
 const themeToggle=document.getElementById('theme-toggle');
 const themePicker=document.getElementById('theme-picker');
