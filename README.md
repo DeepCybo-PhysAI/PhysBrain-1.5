@@ -1,18 +1,19 @@
 <div align="center">
-
 # PhysBrain 1.5
 
 ### From General VLMs to Physical Foundation Model
 
 **Unified embodied understanding, action generation, and future-state prediction.**
 
-[**Project Website**](https://deepcybo-physai.github.io/PhysBrain-1.5/) · [**Technical Report**](./tech_report.pdf) · [**Model Weights**](https://huggingface.co/collections/DeepCybo/physbrain-15) · [**Live Demo**](https://huggingface.co/spaces/hugging-apps/physbrain1-5-8b-demo) · [**Evaluation Toolkit**](https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit)
+[**🌐 Project Website**](https://deepcybo-physai.github.io/PhysBrain-1.5/) · [**📄 Technical Report**](./tech_report.pdf) · [**🤗 Model Weights**](https://huggingface.co/collections/DeepCybo/physbrain-15) · [**🚀 Live Demo**](https://huggingface.co/spaces/hugging-apps/physbrain1-5-8b-demo) · [**🛠️ Evaluation Toolkit**](https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit)
 
 </div>
 
+<img src="assets/logo.png" alt="DeepCybo · Zhongguancun Academy · Zhongguancun Institute of Artificial Intelligence" width="900" />
+
 PhysBrain 1.5 is an embodied foundation model that understands observations, generates goal-directed actions, and predicts how the environment may evolve. Built on Qwen3-VL, it represents language responses, spatial outputs, end-effector trajectories, and future visual states as discrete tokens within one shared autoregressive backbone.
 
-Visit the **[project website](https://deepcybo-physai.github.io/PhysBrain-1.5/)** for the full model overview, benchmark comparisons, and qualitative examples. The website supports English and Chinese.
+Visit the **[🌐 project website](https://deepcybo-physai.github.io/PhysBrain-1.5/)** for the full model overview, benchmark comparisons, and qualitative examples. The website supports English and Chinese.
 
 ## Highlights
 
@@ -46,18 +47,18 @@ Scores use a 0–100 scale, with higher values indicating better performance. Th
 
 ![PhysBrain 1.5 overall leaderboard and selected benchmark comparisons](https://raw.githubusercontent.com/DeepCybo-PhysAI/PhysBrain-1.5/gh-pages/assets/leaderboard-v5_01.png)
 
-See the [interactive results table](https://deepcybo-physai.github.io/PhysBrain-1.5/#results) and [technical report](./tech_report.pdf) for per-benchmark scores and evaluation details. The [PhysBrainEvalKit repository](https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit) provides the evaluation toolkit.
+See the [📊 interactive results table](https://deepcybo-physai.github.io/PhysBrain-1.5/#results) and [📄 technical report](./tech_report.pdf) for per-benchmark scores and evaluation details. The [🛠️ PhysBrainEvalKit repository](https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit) provides the evaluation toolkit.
 
 ## Get Started
 
-1. **Try the model:** open the [PhysBrain 1.5-8B live demo](https://huggingface.co/spaces/hugging-apps/physbrain1-5-8b-demo).
+1. **Try the model:** open the [🚀 PhysBrain 1.5-8B live demo](https://huggingface.co/spaces/hugging-apps/physbrain1-5-8b-demo).
 2. **Download a checkpoint:** choose a model below and follow its model-card instructions for inference and usage.
-3. **Evaluate:** use [PhysBrainEvalKit](https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit) for benchmark evaluation.
+3. **Evaluate:** use [🛠️ PhysBrainEvalKit](https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit) for benchmark evaluation.
 
 | Checkpoint | Model card and weights |
 | --- | --- |
-| PhysBrain 1.5-8B | [DeepCybo/PhysBrain1.5-8B](https://huggingface.co/DeepCybo/PhysBrain1.5-8B) |
-| PhysBrain 1.5-2B | [DeepCybo/PhysBrain1.5-2B](https://huggingface.co/DeepCybo/PhysBrain1.5-2B) |
+| PhysBrain 1.5-8B | [🤗 DeepCybo/PhysBrain1.5-8B](https://huggingface.co/DeepCybo/PhysBrain1.5-8B) |
+| PhysBrain 1.5-2B | [🤗 DeepCybo/PhysBrain1.5-2B](https://huggingface.co/DeepCybo/PhysBrain1.5-2B) |
 
 This repository hosts the technical report and project documentation. Model checkpoints are hosted on Hugging Face, and evaluation tools are maintained in PhysBrainEvalKit.
 
