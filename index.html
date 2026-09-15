@@ -426,7 +426,7 @@ footer p{color:var(--dim);font-size:.85rem}
     </p>
     <div class="btn-row">
       <a class="btn btn-primary" href="https://huggingface.co/collections/DeepCybo/physbrain-15" target="_blank" rel="noopener" data-i18n="link.weights">🤗 Model Weights</a>
-      <a class="btn btn-ghost" id="paper-download" href="assets/physbrain1.5_tech_report.pdf" download="physbrain1.5_tech_report.pdf" title="Download the paper" data-i18n-title="paper.download"><span aria-hidden="true">📄</span> <span data-i18n="link.paper">Paper</span></a>
+      <a class="btn btn-ghost" id="paper-link" href="https://arxiv.org/abs/2609.14973" target="_blank" rel="noopener" title="Read the paper on arXiv" data-i18n-title="paper.arxiv"><span aria-hidden="true">📄</span> <span data-i18n="link.paper">Paper</span></a>
       <a class="btn btn-ghost" href="https://huggingface.co/spaces/hugging-apps/physbrain1-5-8b-demo" target="_blank" rel="noopener" data-i18n="link.demo">▶ Live Demo</a>
       <a class="btn btn-ghost" href="https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit" target="_blank" rel="noopener" data-i18n="link.eval">📐 EvalKit</a>
     </div>
@@ -1169,10 +1169,13 @@ footer p{color:var(--dim);font-size:.85rem}
         <span style="font-family:'JetBrains Mono';font-size:.75rem;color:var(--dim);margin-left:10px">citation.bib</span>
       </div>
       <pre><span class="kw">@misc</span>{physbrain1.5,
-  title  = {PhysBrain 1.5 Technical Report},
-  author = {{DeepCybo Team}},
-  year   = {2026},
-  url    = {https://github.com/DeepCybo-PhysAI/PhysBrain-1.5}
+      title={PhysBrain 1.5: From Vision-Language Models to Physical Foundation Models},
+      author={DeepCybo Team and Yu Bin and Haipeng Cao and Zheng Chang and Kai Chen and Youning Chen and Kailin Deng and Yichao Du and Xiaotong Fu and Haoyang Ge and Yunlong Guo and Chenliu Hao and Jiyan He and Xuguo He and Yakun Hou and Kai Hu and Cong Huang and Tuopusen Huang and Yu Huang and Hong Li and Peize Li and Shijie Lian and Xiaopeng Lin and Yun Lin and Haibao Liu and Haochen Liu and Qiuzhi Liu and Shengcai Liu and Zhiqiang Liu and Tao Luo and Peng Ren and Shuo Ren and Chaoyi Ruan and Zhaolong Shen and Yukun Shi and Qiyuan Su and Yuxuan Tian and Yining Wang and Changti Wu and Hao Wu and Xueyin Xu and Ruoqi Yang and Zhaoyang Yang and Hang Yuan and Zhaoyang Zeng and Hanwen Zhang and Ruimeng Zhang and Yao Zhang and Yibo Zhang and Yuxiang Zhang and Zhirui Zhang and Ziyi Zhang and Zubin Zheng and Zishen Zhuang},
+      year={2026},
+      eprint={2609.14973},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2609.14973},
 }</pre>
     </div>
   </div>
@@ -1197,12 +1200,6 @@ footer p{color:var(--dim);font-size:.85rem}
 
 <script src="i18n.js"></script>
 <script>
-/* Confirm before allowing the browser's native same-origin PDF download. */
-document.getElementById('paper-download').addEventListener('click',event=>{
-  const message=window.physbrainI18n?.t('paper.confirm')||'Download the PhysBrain 1.5 paper?';
-  if(!window.confirm(message))event.preventDefault();
-});
-
 /* Keep the control independent of background effects. */
 const themeToggle=document.getElementById('theme-toggle');
 const themePicker=document.getElementById('theme-picker');

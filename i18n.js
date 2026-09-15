@@ -424,13 +424,9 @@
     "en": "Ranking legend",
     "zh": "排名图例"
   },
-  "paper.download": {
-    "en": "Download the paper",
-    "zh": "下载论文"
-  },
-  "paper.confirm": {
-    "en": "Download the PhysBrain 1.5 paper?",
-    "zh": "是否下载 PhysBrain 1.5 论文？"
+  "paper.arxiv": {
+    "en": "Read the paper on arXiv",
+    "zh": "在 arXiv 阅读论文"
   },
   "table.best_tip": {
     "en": "Best open-source result",
