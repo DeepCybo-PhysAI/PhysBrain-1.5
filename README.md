@@ -6,7 +6,7 @@
 
 **Unified embodied understanding, action generation, and future-state prediction.**
 
-[**🌐 Project Website**](https://deepcybo-physai.github.io/PhysBrain-1.5/) · [**📄 Technical Report**](https://arxiv.org/abs/2609.14973) · [**🤗 Model Weights**](https://huggingface.co/collections/DeepCybo/physbrain-15) · [**🚀 Live Demo**](https://huggingface.co/spaces/hugging-apps/physbrain1-5-8b-demo) · [**🛠️ Evaluation Toolkit**](https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit)
+[**🌐 Project Website**](https://deepcybo-physai.github.io/PhysBrain-1.5/) · [**📄 Technical Report**](https://arxiv.org/abs/2609.14973) · [**🤗 Model Weights**](https://huggingface.co/collections/DeepCybo/physbrain-15) · [**🚀 Live Demo**](https://huggingface.co/spaces/DeepCybo/physbrain1-5-8b-demo) · [**🛠️ Evaluation Toolkit**](https://github.com/DeepCybo-PhysAI/PhysBrainEvalKit)
 
 </div>
 
