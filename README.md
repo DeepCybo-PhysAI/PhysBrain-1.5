@@ -69,10 +69,13 @@ If you use PhysBrain 1.5 in your research, please cite our technical report:
 
 ```bibtex
 @misc{physbrain1.5,
-  title  = {PhysBrain 1.5 Technical Report},
-  author = {{DeepCybo Team}},
-  year   = {2026},
-  url    = {https://github.com/DeepCybo-PhysAI/PhysBrain-1.5}
+      title={PhysBrain 1.5: From Vision-Language Models to Physical Foundation Models}, 
+      author={DeepCybo Team and Yu Bin and Haipeng Cao and Zheng Chang and Kai Chen and Youning Chen and Kailin Deng and Yichao Du and Xiaotong Fu and Haoyang Ge and Yunlong Guo and Chenliu Hao and Jiyan He and Xuguo He and Yakun Hou and Kai Hu and Cong Huang and Tuopusen Huang and Yu Huang and Hong Li and Peize Li and Shijie Lian and Xiaopeng Lin and Yun Lin and Haibao Liu and Haochen Liu and Qiuzhi Liu and Shengcai Liu and Zhiqiang Liu and Tao Luo and Peng Ren and Shuo Ren and Chaoyi Ruan and Zhaolong Shen and Yukun Shi and Qiyuan Su and Yuxuan Tian and Yining Wang and Changti Wu and Hao Wu and Xueyin Xu and Ruoqi Yang and Zhaoyang Yang and Hang Yuan and Zhaoyang Zeng and Hanwen Zhang and Ruimeng Zhang and Yao Zhang and Yibo Zhang and Yuxiang Zhang and Zhirui Zhang and Ziyi Zhang and Zubin Zheng and Zishen Zhuang},
+      year={2026},
+      eprint={2609.14973},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2609.14973}, 
 }
 ```
 
